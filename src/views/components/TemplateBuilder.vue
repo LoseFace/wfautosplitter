@@ -3,6 +3,9 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { useTooltip } from '../../composables/useTooltip'
+
+import imgGarbage from '../../imgs/garbage.png'
+import imgPlus from '../../imgs/plus.png'
  
 const { t } = useI18n()
  
@@ -601,13 +604,13 @@ const isTemplateValid = computed(() => {
               v-model="split.code">
             <button class="template-name-clear" @click="clearField(split, 'code', splitCodeInputs.get(`${group.id}-${splitIndex}`) ?? null)">⌫</button>
             <button class="split-delete" @click="deleteSplit(group.id, splitIndex)">
-              <img src="../../imgs/garbage.png" width="25px" height="25px">
+              <img :src="imgGarbage" width="25px" height="25px">
             </button>
           </div>
   
           <div class="template-split">
             <button class="split-add" @click="addSplit(group.id)" :data-tooltip="$t('add_split')">
-              <img src="../../imgs/plus.png" width="28px" height="28px">
+              <img :src="imgPlus" width="28px" height="28px">
             </button>
           </div>
   
@@ -633,13 +636,13 @@ const isTemplateValid = computed(() => {
           class="delete-group"
           @click="deleteGroup(group.id)"
         >
-          <img src="../../imgs/garbage.png" width="30px" height="30px">
+          <img :src="imgGarbage" width="30px" height="30px">
         </button>
       </div>
   
       <div class="ba-group">
         <button v-if="canAddGroup" class="add-group" @click="addGroup" :data-tooltip="$t('add_group')">
-          <img src="../../imgs/plus.png" width="28px" height="28px">
+          <img :src="imgPlus" width="28px" height="28px">
         </button>
       </div>
     </div>

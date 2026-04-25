@@ -4,6 +4,9 @@ import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import { useTooltip } from '../../composables/useTooltip'
 
+import imgConflict from '../../imgs/conflict.png'
+
+
 const { t } = useI18n()
 const STORAGE_KEY_TEMPLATE_SEARCH = 'templates_search_text'
 
@@ -304,7 +307,7 @@ const {
           >
             <img
               class="conflict-icon"
-              src="../../imgs/conflict.png"
+              :src="imgConflict"
             >
           </button>
         </div>

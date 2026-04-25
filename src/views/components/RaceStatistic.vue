@@ -14,6 +14,12 @@ import {
   type TooltipItem,
 } from 'chart.js'
 
+import imgZoom from '../../imgs/zoom.png'
+import imgToLeft from '../../imgs/toLeft.png'
+import imgToRight from '../../imgs/toRight.png'
+import imgSync from '../../imgs/sync.png'
+import imgGarbage from '../../imgs/garbage.png'
+
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip)
 
 const { t } = useI18n()
@@ -503,7 +509,7 @@ onUnmounted(() => {
     
     <div class="chart-controls" v-if="chartRuns.length > CHART_MIN_VISIBLE">
       <div class="chart-control-row">
-        <img src="../../imgs/zoom.png" width="15px" height="15px">
+        <img :src="imgZoom" width="15px" height="15px">
         <input
           type="range"
           :min="CHART_MIN_VISIBLE"
@@ -513,14 +519,14 @@ onUnmounted(() => {
         >
       </div>
       <div class="chart-control-row">
-        <img src="../../imgs/toLeft.png" width="12px" height="12px">
+        <img :src="imgToLeft" width="12px" height="12px">
         <input
         type="range"
         :min="0"
         :max="Math.max(0, chartRuns.length - chartVisible)"
         v-model.number="chartStart"
         >
-        <img src="../../imgs/toRight.png" width="12px" height="12px">
+        <img :src="imgToRight" width="12px" height="12px">
       </div>
     </div>
 
@@ -543,7 +549,7 @@ onUnmounted(() => {
       <button @click="cycleSort">{{ SORT_MODES[sortIndex] }}</button>
       <div class="sync-wrapper" v-if="userTemplates.length > 0">
         <button class="sync-btn">
-          <img class="sync-img" src="../../imgs/sync.png">
+          <img class="sync-img" :src="imgSync">
         </button>
         <select
           :title="$t('sync_tooltip')"
@@ -602,7 +608,7 @@ onUnmounted(() => {
           :disabled="pendingDeleteId === run.id"
           @click="askDelete(run.id)"
         >
-          <img src="../../imgs/garbage.png" width="30px" height="30px">
+          <img :src="imgGarbage" width="30px" height="30px">
         </button>
 
         <div class="deletion-record" v-if="pendingDeleteId === run.id">

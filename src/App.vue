@@ -6,6 +6,12 @@ import MissionsView from './views/Races.vue'
 import OverlayView from './views/Overlay.vue'
 import SettingsView from './views/Settings.vue'
 import TemplatesView from './views/TemplatesView.vue'
+import imgProfile from './imgs/profile.png'
+import imgTimer from './imgs/timer.png'
+import imgTemplate from './imgs/template.png'
+import imgOverlay from './imgs/overlay.png'
+import imgSettings from './imgs/settings.png'
+import imgUpdate from './imgs/update.png'
 
 import { getVersion } from '@tauri-apps/api/app'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -168,33 +174,33 @@ onMounted(async () => {
       <div ref="contentRef" class="menu-content">
 
         <div class="profile">
-          <img class="avatar" src="./imgs/profile.png">
+          <img class="avatar" :src="imgProfile">
           <span class="text">{{playerNickname}}</span>
         </div>
 
         <nav class="nav">          
           <button @click="currentView = 'races'; racesKey++">
-            <img src="./imgs/timer.png">
+            <img :src="imgTimer">
             <span class="text">{{ $t('races') }}</span>
           </button>
 
           <button @click="currentView = 'templates'">
-            <img src="./imgs/template.png">
+            <img :src="imgTemplate">
             <span class="text">{{ $t('templates') }}</span>
           </button>
 
           <button @click="currentView = 'overlay'">
-            <img src="./imgs/overlay.png">
+            <img :src="imgOverlay">
             <span class="text">{{ $t('overlay') }}</span>
           </button>
 
           <button @click="currentView = 'settings'">
-            <img src="./imgs/settings.png">
+            <img :src="imgSettings">
             <span class="text">{{ $t('settings') }}</span>
           </button>
 
           <button v-if="hasUpdate" class="update-button" @click="handleUpdate">
-            <img src="./imgs/update.png">
+            <img :src="imgUpdate">
             <span class="text">{{ $t('update') }}</span>
           </button>
         </nav>
