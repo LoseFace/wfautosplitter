@@ -30,8 +30,9 @@ pub fn import_default_templates(app: AppHandle) -> Result<(), String> {
             .join("resources")
             .join("default_templates.json")
     } else {
-        let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
-        resource_dir.join("default_templates.json")
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_dir = exe_path.parent().ok_or("Cannot get exe dir")?;
+        exe_dir.join("resources").join("default_templates.json")
     };
 
     if !default_path.exists() {
@@ -121,8 +122,9 @@ pub fn get_default_templates(app: AppHandle) -> Result<Vec<Template>, String> {
             .join("resources")
             .join("default_templates.json")
     } else {
-        let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
-        resource_dir.join("default_templates.json")
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_dir = exe_path.parent().ok_or("Cannot get exe dir")?;
+        exe_dir.join("resources").join("default_templates.json")
     };
 
 
