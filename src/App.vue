@@ -7,6 +7,49 @@ import OverlayView from './views/Overlay.vue'
 import SettingsView from './views/Settings.vue'
 import TemplatesView from './views/TemplatesView.vue'
 
+import { getVersion } from '@tauri-apps/api/app'
+import { openUrl } from '@tauri-apps/plugin-opener'
+
+const hasUpdate = ref(false)
+const downloadUrl = ref('')
+
+async function checkForUpdates() {
+  try {
+    const current = await getVersion()
+    const res = await fetch('https://api.github.com/repos/LoseFace/wfautosplitter/releases/latest')
+    const data = await res.json()
+    const latest = data.tag_name.replace('v', '')
+
+    if (isNewerVersion(latest, current)) {
+      hasUpdate.value = true
+      const asset = data.assets.find((a: any) => a.name.endsWith('.exe'))
+      if (asset) downloadUrl.value = asset.browser_download_url
+    }
+  } catch (e) {
+    console.error('Update check failed:', e)
+  }
+}
+
+function isNewerVersion(latest: string, current: string): boolean {
+  const l = latest.split('.').map(Number)
+  const c = current.split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    if (l[i] > c[i]) return true
+    if (l[i] < c[i]) return false
+  }
+  return false
+}
+
+async function handleUpdate() {
+  if (downloadUrl.value) {
+    await openUrl(downloadUrl.value)
+  }
+}
+
+onMounted(() => {
+  checkForUpdates()
+})
+
 const views = {
   races: MissionsView,
   templates: TemplatesView,
@@ -150,7 +193,7 @@ onMounted(async () => {
             <span class="text">{{ $t('settings') }}</span>
           </button>
 
-          <button class="update-button">
+          <button v-if="hasUpdate" class="update-button" @click="handleUpdate">
             <img src="./imgs/update.png">
             <span class="text">{{ $t('update') }}</span>
           </button>
