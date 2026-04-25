@@ -127,14 +127,12 @@ const addWrapperRef = ref<HTMLElement | null>(null)
 const addingTemplates = ref<Set<string>>(new Set())
 
 const loadDefaultTemplates = async () => {
-  const loadDefaultTemplates = async () => {
   try {
     defaultTemplates.value = await invoke('get_default_templates')
     console.log('default templates loaded:', defaultTemplates.value.length)
   } catch (e) {
     console.error('get_default_templates error:', e)
   }
-}
 }
 
 onMounted(async () => {
