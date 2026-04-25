@@ -125,6 +125,9 @@ pub fn get_default_templates(app: AppHandle) -> Result<Vec<Template>, String> {
         resource_dir.join("default_templates.json")
     };
 
+    let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
+    eprintln!("[DEBUG] resource_dir = {:?}", resource_dir);
+
     if !default_path.exists() {
         return Err(format!(
             "Default templates file not found at: {:?}",

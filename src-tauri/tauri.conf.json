@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "WFAutoSplitter",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "identifier": "WFAutoSplitter",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -42,7 +42,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://api.github.com",
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: asset: http://asset.localhost; connect-src 'self' ipc: http://ipc.localhost https://api.github.com",
       "capabilities": ["default"]
     }
   },
