@@ -115,9 +115,6 @@ pub fn delete_template(app: AppHandle, template_id: String) -> Result<(), String
 pub fn get_default_templates(app: AppHandle) -> Result<Vec<Template>, String> {
     use std::fs;
     use std::path::PathBuf;
-    
-    let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
-    eprintln!("[DEBUG] resource_dir = {:?}", resource_dir);
 
     let default_path: PathBuf = if cfg!(debug_assertions) {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))

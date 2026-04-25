@@ -130,8 +130,8 @@ const loadDefaultTemplates = async () => {
   try {
     defaultTemplates.value = await invoke('get_default_templates')
     console.log('default templates loaded:', defaultTemplates.value.length)
-  } catch (e) {
-    console.error('get_default_templates error:', e)
+  } catch (e: any) {
+    alert('Error: ' + e)
   }
 }
 
