@@ -200,7 +200,7 @@ function cycleSort() {
   height: 40px;
   padding: 5px 0px 5px 10px;
   z-index: 10;
-  gap: 20px;
+  gap: 10px;
   box-shadow: 3px 3px 0 0 rgba(0,0,0,0.5);
 }
 
@@ -209,7 +209,7 @@ function cycleSort() {
   height: 30px;
 }
 .race-search-clear {
-  margin-left: -20px;
+  margin-left: -10px;
 }
 
 .races-list {
