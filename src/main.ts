@@ -9,25 +9,25 @@ import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window"
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { invoke } from "@tauri-apps/api/core"
 
-function disableBrowserShortcuts() {
-  window.addEventListener("contextmenu", (e) => {
-    e.preventDefault()
-  })
+// function disableBrowserShortcuts() {
+//   window.addEventListener("contextmenu", (e) => {
+//     e.preventDefault()
+//   })
 
-  window.addEventListener("keydown", (e) => {
-    const key = e.key.toLowerCase()
+//   window.addEventListener("keydown", (e) => {
+//     const key = e.key.toLowerCase()
 
-    if (
-      key === "f5" ||
-      (e.ctrlKey && key === "r") ||
-      (e.ctrlKey && key === "p")
-    ) {
-      e.preventDefault()
-    }
-  })
-}
+//     if (
+//       key === "f5" ||
+//       (e.ctrlKey && key === "r") ||
+//       (e.ctrlKey && key === "p")
+//     ) {
+//       e.preventDefault()
+//     }
+//   })
+// }
 
-disableBrowserShortcuts()
+// disableBrowserShortcuts()
 
 async function bootstrap() {
   const appWindow = getCurrentWindow()
