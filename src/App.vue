@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { getCurrentWindow, LogicalPosition } from '@tauri-apps/api/window'
+import { useI18n } from 'vue-i18n'
+import { getVersion } from '@tauri-apps/api/app'
+import { openUrl } from '@tauri-apps/plugin-opener'
 
 import MissionsView from './views/Races.vue'
 import OverlayView from './views/Overlay.vue'
@@ -13,9 +16,7 @@ import imgOverlay from './imgs/overlay.png'
 import imgSettings from './imgs/settings.png'
 import imgUpdate from './imgs/update.png'
 
-import { getVersion } from '@tauri-apps/api/app'
-import { openUrl } from '@tauri-apps/plugin-opener'
-
+const { locale } = useI18n()
 const hasUpdate = ref(false)
 const downloadUrl = ref('')
 
@@ -96,6 +97,15 @@ const { settings } = useSettings()
 let unlisten: UnlistenFn | null = null
 
 onMounted(async () => {
+
+  const supportedLanguages = ['en', 'ru', 'uk']
+  const savedLang = settings.interface.language ?? 'system'
+  if (savedLang === 'system') {
+    const systemLang = navigator.language.slice(0, 2)
+    locale.value = supportedLanguages.includes(systemLang) ? systemLang : 'en'
+  } else {
+    locale.value = savedLang
+  }
 
   const logPath = settings.interface.path_log
 
