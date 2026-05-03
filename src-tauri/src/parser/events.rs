@@ -13,7 +13,6 @@ pub enum LogEvent {
     RunStarted {
         template_id: String,
         template_name: String,
-        player_nickname: String,
         sequential_mode: bool,
         exclude_time_between_groups: bool,
         group_id: String,
@@ -36,13 +35,9 @@ pub enum LogEvent {
     RunReset,
     RunFinished {
         total_time: f64,
-        player_nickname: String,
     },
     TimerPause {
         frozen_time: f64,
     },
     TimerResume,
-    NetracellIcons {
-        icons: Vec<String>,
-    },
 }

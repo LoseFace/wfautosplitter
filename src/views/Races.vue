@@ -10,8 +10,6 @@ const { t } = useI18n()
 const STORAGE_KEY_RACES_SEARCH = 'races_search_text'
 const STORAGE_KEY_RACES_SORT = 'races_sort_index'
 
-const props = defineProps<{ nickname?: string | null }>()
-
 let unlistenRunSaved: UnlistenFn | null = null
 
 interface TemplateSummary {
@@ -48,16 +46,10 @@ const SORT_MODES = computed(() => [
 ])
 
 async function loadSummaries() {
-  const nickname = props.nickname
-  if (!nickname) {
-    summaries.value = []
-    return
-  }
-
   loading.value = true
-  error.value   = null
+  error.value = null
   try {
-    summaries.value = await invoke<TemplateSummary[]>('get_template_summaries', { nickname })
+    summaries.value = await invoke<TemplateSummary[]>('get_template_summaries')
   } catch (e: any) {
     error.value = e?.toString() ?? 'error'
   } finally {
@@ -73,11 +65,6 @@ onMounted(async () => {
 })
 onUnmounted(() => {
   if (unlistenRunSaved) unlistenRunSaved()
-})
-
-watch(() => props.nickname, (val) => {
-  if (val) loadSummaries()
-  else summaries.value = []
 })
 
 watch(searchRaceText, (newVal) => {
@@ -141,11 +128,9 @@ function cycleSort() {
 </script>
 
 <template>
-  <!-- Если выбрана статистика — показываем её вместо списка -->
   <RaceStatistic
     v-if="selectedSummary"
     :summary="selectedSummary"
-    :nickname="props.nickname ?? ''"
     @close="closeStatistic"
     @deleted="loadSummaries"
   />

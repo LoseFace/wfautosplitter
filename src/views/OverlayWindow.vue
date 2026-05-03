@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch, nextTick, computed } from "vue"
-import { settings, initSettings } from "../services/settings"
+import { settings } from "../services/settings"
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/window"
 import { invoke } from "@tauri-apps/api/core"
@@ -17,29 +17,14 @@ import {
 } from "../services/overlay"
 import { useI18n } from 'vue-i18n'
 import i18n from '../i18n'
+import { formatShortcutDisplay } from '../composables/useKeybindContext'
 
-import icon01 from '../imgs/netracells/BurdenHudIcon01.png'
-import icon02 from '../imgs/netracells/BurdenHudIcon02.png'
-import icon03 from '../imgs/netracells/BurdenHudIcon03.png'
-import icon04 from '../imgs/netracells/BurdenHudIcon04.png'
-import icon05 from '../imgs/netracells/BurdenHudIcon05.png'
-import icon06 from '../imgs/netracells/BurdenHudIcon06.png'
-import icon07 from '../imgs/netracells/BurdenHudIcon07.png'
-import icon09 from '../imgs/netracells/BurdenHudIcon09.png'
-
-const iconMap: Record<string, string> = {
-  '01': icon01, '02': icon02, '03': icon03, '04': icon04,
-  '05': icon05, '06': icon06, '07': icon07, '09': icon09,
-}
-const netracellIcons = ref<string[]>([])
 
 const { t } = useI18n()
 
 const overlayWindowRef = ref<WebviewWindow | null>(null)
 const loaded = ref(false)
 const overlayElement = ref<HTMLElement | null>(null)
-
-const playerNickname = ref('')
 const abortCount = ref(0)
 
 const overlayBackground = computed(() => {
@@ -60,20 +45,18 @@ const hasBestRun = computed(() => bestSplitMap.value.size > 0)
 const lastRuns = ref<Array<{ id: number, total_time: number }>>([])
 const bestSegmentMap = ref<Map<number, number>>(new Map())
 const frozenDeltaMap = ref<Map<number, number>>(new Map())
-const frozenGoldMap = ref<Map<number, boolean>>(new Map())
+const frozenGoldSplitMap = ref<Map<number, boolean>>(new Map())
+const frozenGoldSegmentMap = ref<Map<number, boolean>>(new Map())
 const hasFrozenDeltas = computed(() => frozenDeltaMap.value.size > 0)
 
 async function loadBestSegments(templateId: string) {
-  if (!templateId || !playerNickname.value) {
+  if (!templateId) {
     bestSegmentMap.value = new Map()
     return
   }
   try {
     const segments = await invoke<Array<{ split_index: number, split_time: number }>>(
-      'get_best_segments', {
-        nickname: playerNickname.value,
-        templateId,
-      }
+      'get_best_segments', { templateId }
     )
     const map = new Map<number, number>()
     for (const s of segments) map.set(s.split_index, s.split_time)
@@ -84,7 +67,7 @@ async function loadBestSegments(templateId: string) {
 }
 
 async function loadLastRuns(templateId: string) {
-  if (!templateId || !playerNickname.value) {
+  if (!templateId) {
     lastRuns.value = []
     return
   }
@@ -94,13 +77,10 @@ async function loadLastRuns(templateId: string) {
     return
   }
   try {
-    const runs = await invoke<Array<{ id: number, total_time: number }>>(
-      'get_runs', {
-        nickname: playerNickname.value,
-        templateId,
-      }
+    const runs = await invoke<Array<{ id: number, total_time: number, success: boolean }>>(
+      'get_runs', { templateId }
     )
-    lastRuns.value = runs.slice(0, count)
+    lastRuns.value = runs.filter(r => r.success).slice(0, count)
   } catch {
     lastRuns.value = []
   }
@@ -128,7 +108,7 @@ const sumOfBest = computed((): number | null => {
 const isRunActive = computed(() => overlayState.value.is_running)
 
 async function loadBestRun(templateId: string) {
-  if (!templateId || !playerNickname.value) {
+  if (!templateId) {
     bestSplitMap.value = new Map()
     bestRunTotalTime.value = null
     return
@@ -137,10 +117,7 @@ async function loadBestRun(templateId: string) {
     const run = await invoke<{
       splits: BestSplit[]
       total_time: number
-    } | null>('get_best_run', {
-      nickname: playerNickname.value,
-      templateId,
-    })
+    } | null>('get_best_run', { templateId })
 
     if (!run) {
       bestSplitMap.value = new Map()
@@ -160,16 +137,13 @@ async function loadBestRun(templateId: string) {
   }
 }
 async function loadGoldSplits(templateId: string) {
-  if (!templateId || !playerNickname.value) {
+  if (!templateId) {
     goldSplitMap.value = new Map()
     return
   }
   try {
     const splits = await invoke<Array<{ split_index: number, split_time: number }>>(
-      'get_best_splits', {
-        nickname: playerNickname.value,
-        templateId,
-      }
+      'get_best_splits', { templateId }
     )
     const map = new Map<number, number>()
     for (const s of splits) map.set(s.split_index, s.split_time)
@@ -200,11 +174,11 @@ function formatTime(sec: number): string {
 
   let timePart = ""
   if (h > 0) {
-    timePart = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+  timePart = `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
   } else if (m > 0) {
-    timePart = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+    timePart = `${m}:${s.toString().padStart(2, "0")}`
   } else {
-    timePart = `${s.toString().padStart(2, "0")}`
+    timePart = `${s}`
   }
 
   const accuracy = settings.overlay?.time_accuracy || "milliseconds"
@@ -240,9 +214,13 @@ function formatDelta(delta: number): string {
 
   let timePart = ""
   if (h > 0) {
-    timePart = `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+    timePart = s > 0
+      ? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+      : `${h}:${m.toString().padStart(2, "0")}`
   } else if (m > 0) {
-    timePart = `${m}:${s.toString().padStart(2, "0")}`
+    timePart = s > 0
+      ? `${m}:${s.toString().padStart(2, "0")}`
+      : `${m}`
   } else {
     timePart = `${s}`
   }
@@ -330,21 +308,25 @@ function getDisplayDelta(order: number, currentTime: number | null): number | nu
 
 function freezeCurrentDeltas() {
   const deltaMap = new Map<number, number>()
-  const goldMap = new Map<number, boolean>()
+  const goldSplitResult = new Map<number, boolean>()
+  const goldSegmentResult = new Map<number, boolean>()
   for (const split of overlayState.value.splits) {
     if (!split.is_completed || split.split_time === null) continue
     const delta = getLiveDelta(split.order, split.split_time)
     if (delta !== null) {
       deltaMap.set(split.order, delta)
-      const isGold = isGoldSplit(split.order, split.split_time)
-      goldMap.set(split.order, isGold)
+      goldSplitResult.set(split.order, isGoldSplit(split.order, split.split_time))
+      goldSegmentResult.set(split.order, isGoldSegment(split.order, split.split_time))
     }
   }
   frozenDeltaMap.value = deltaMap
-  frozenGoldMap.value = goldMap
+  frozenGoldSplitMap.value = goldSplitResult
+  frozenGoldSegmentMap.value = goldSegmentResult
 }
 function getFrozenGold(order: number): boolean {
-  return frozenGoldMap.value.get(order) ?? false
+  const mode = settings.overlay?.time_gold ?? 'splits'
+  const map = mode === 'segments' ? frozenGoldSegmentMap.value : frozenGoldSplitMap.value
+  return map.get(order) ?? false
 }
 
 function isGoldSplit(order: number, currentTime: number | null): boolean {
@@ -352,6 +334,28 @@ function isGoldSplit(order: number, currentTime: number | null): boolean {
   const gold = goldSplitMap.value.get(order)
   if (gold === undefined) return false
   return currentTime < gold
+}
+
+function isGoldSegment(order: number, currentTime: number | null): boolean {
+  if (currentTime === null) return false
+  const bestSegment = bestSegmentMap.value.get(order)
+  if (bestSegment === undefined) return false
+
+  const splits = overlayState.value.splits
+  const prevSplit = splits.find(s => s.order === order - 1)
+  const prevTime = (prevSplit?.is_completed && prevSplit.split_time !== null)
+    ? prevSplit.split_time
+    : 0
+  const segmentDuration = currentTime - prevTime
+
+  return segmentDuration < bestSegment
+}
+
+function isGold(order: number, currentTime: number | null): boolean {
+  const mode = settings.overlay?.time_gold ?? 'splits'
+  return mode === 'segments'
+    ? isGoldSegment(order, currentTime)
+    : isGoldSplit(order, currentTime)
 }
 
 watch(() => overlayState.value.is_trigger_only, async (isTriggerOnly) => {
@@ -364,7 +368,8 @@ watch(() => overlayState.value.is_trigger_only, async (isTriggerOnly) => {
 watch(() => overlayState.value.is_running, (isRunning) => {
   if (isRunning) {
     frozenDeltaMap.value = new Map()
-    frozenGoldMap.value = new Map()
+    frozenGoldSplitMap.value = new Map()
+    frozenGoldSegmentMap.value = new Map()
   }
 })
 
@@ -379,12 +384,13 @@ watch(firstSplitReceived, async (received) => {
 watch(
   () => overlayState.value.template_id,
   async (templateId) => {
-    if (!templateId || !playerNickname.value) {
+    if (!templateId) {
       abortCount.value = 0
       bestSplitMap.value = new Map()
       bestRunTotalTime.value = null
       frozenDeltaMap.value = new Map()
-      frozenGoldMap.value = new Map()
+      frozenGoldSplitMap.value = new Map()
+      frozenGoldSegmentMap.value = new Map()
       return
     }
 
@@ -392,7 +398,7 @@ watch(
       const summaries = await invoke<Array<{
         template_id: string
         abort_count: number
-      }>>('get_template_summaries', { nickname: playerNickname.value })
+      }>>('get_template_summaries')
       const match = summaries.find(
         s => s.template_id === templateId
       )
@@ -506,11 +512,6 @@ const showComparisonColumns = computed(() =>
   hasBestRun.value && (isRunActive.value || hasFrozenDeltas.value)
 )
 
-const showNetracellTip = computed(() =>
-  (settings.overlay?.netracell_tip ?? false) &&
-  netracellIcons.value.length > 0
-)
-
 watch(
   () => settings.overlay?.drag_mode,
   async () => {
@@ -525,16 +526,11 @@ watch(
 )
 
 onMounted(async () => {
-  await initSettings()
   await listen<string>('language-changed', (event) => {
     i18n.global.locale.value = event.payload as any
   })
 
   initOverlayListener()
-
-  await listen<string>('player-nickname', (event) => {
-    playerNickname.value = event.payload
-  })
 
   await listen('run-saved', async () => {
     const { template_id } = overlayState.value
@@ -546,10 +542,15 @@ onMounted(async () => {
     await loadGoldSplits(template_id)
     await loadBestSegments(template_id)
     await loadLastRuns(template_id)
-  })
 
-  await listen<string[]>('netracell-icons', (event) => {
-    netracellIcons.value = event.payload
+    try {
+      const summaries = await invoke<Array<{
+        template_id: string
+        abort_count: number
+      }>>('get_template_summaries')
+      const match = summaries.find(s => s.template_id === template_id)
+      abortCount.value = match?.abort_count ?? 0
+    } catch {}
   })
 
   await listen('run-reset', () => {
@@ -560,13 +561,30 @@ onMounted(async () => {
     }
   })
 
-  try {
-    const appSettings = await invoke<any>('get_settings')
-    const snapshot = await invoke<{ nickname: string | null }>(
-      'read_log_snapshot', { path: appSettings.interface.path_log }
-    )
-    if (snapshot.nickname) playerNickname.value = snapshot.nickname
-  } catch {}
+  await listen('abort-incremented', async () => {
+    const { template_id } = overlayState.value
+    if (!template_id) return
+    try {
+      const summaries = await invoke<Array<{
+        template_id: string
+        abort_count: number
+      }>>('get_template_summaries')
+      const match = summaries.find(s => s.template_id === template_id)
+      abortCount.value = match?.abort_count ?? 0
+    } catch {}
+  })
+  await listen('abort-decremented', async () => {
+    const { template_id } = overlayState.value
+    if (!template_id) return
+    try {
+      const summaries = await invoke<Array<{
+        template_id: string
+        abort_count: number
+      }>>('get_template_summaries')
+      const match = summaries.find(s => s.template_id === template_id)
+      abortCount.value = match?.abort_count ?? 0
+    } catch {}
+  })
 
   setStartTimerCallback(() => {
     if (!timerInterval) startFakeTimer()
@@ -638,7 +656,7 @@ onUnmounted(() => {
 
 const updateSize = async () => {
   await nextTick()
-  setTimeout(async () => { await updateSize() }, 0)
+  setTimeout(async () => { await updateSize() }, 100)
   if (!overlayElement.value || !overlayWindowRef.value) return
 
   const rect = overlayElement.value.getBoundingClientRect()
@@ -677,39 +695,35 @@ const updateSize = async () => {
         >
           <div class="split-name" :title="split.name">{{ split.name }}</div>
 
-          <!-- Текущее время / дифф -->
           <div
             class="split-time"
             :class="{
               'delta-gold':
                 (split.is_completed || !isRunActive) &&
                 showComparisonColumns &&
-                (isRunActive ? isGoldSplit(split.order, split.split_time) : getFrozenGold(split.order)),
+                (isRunActive ? isGold(split.order, split.split_time) : getFrozenGold(split.order)),
               'delta-positive':
                 (split.is_completed || !isRunActive) &&
                 showComparisonColumns &&
-                !(isRunActive ? isGoldSplit(split.order, split.split_time) : getFrozenGold(split.order)) &&
+                !(isRunActive ? isGold(split.order, split.split_time) : getFrozenGold(split.order)) &&
                 getDisplayDelta(split.order, split.split_time) !== null &&
                 getDisplayDelta(split.order, split.split_time)! >= 0,
               'delta-negative':
                 (split.is_completed || !isRunActive) &&
                 showComparisonColumns &&
-                !(isRunActive ? isGoldSplit(split.order, split.split_time) : getFrozenGold(split.order)) &&
+                !(isRunActive ? isGold(split.order, split.split_time) : getFrozenGold(split.order)) &&
                 getDisplayDelta(split.order, split.split_time) !== null &&
                 getDisplayDelta(split.order, split.split_time)! < 0
             }"
           >
-            <!-- Дифф: для завершённых сплитов во время рана, или замороженный после -->
             <template v-if="(split.is_completed || !isRunActive) && showComparisonColumns && getDisplayDelta(split.order, split.split_time) !== null">
               {{ formatDelta(getDisplayDelta(split.order, split.split_time)!) }}
             </template>
-            <!-- Обычное время если нет записей о ранах или сплит ещё не пройден -->
             <template v-else-if="split.split_time !== null">
               {{ formatTime(split.split_time) }}
             </template>
           </div>
 
-          <!-- Лучшее время сплита из лучшего рана -->
           <div class="split-best" v-if="showComparisonColumns">
             {{ getBestSplitTime(split.order) !== null ? formatTime(getBestSplitTime(split.order)!) : '' }}
           </div>
@@ -734,19 +748,10 @@ const updateSize = async () => {
         </div>
         <div class="sum-last-total">= {{ formatTime(sumLast!) }}</div>
       </div>
-
-      <div class="netracell-tip" v-if="showNetracellTip">
-        <img
-          v-for="num in netracellIcons"
-          :key="num"
-          :src="iconMap[num]"
-          class="netracell-icon"
-        />
-      </div>
     </div>
 
     <div v-if="settings.overlay.drag_mode" class="drag-overlay">
-      <p>{{ settings.overlay.toggle_mode_key }}</p>
+      <p>{{ $t('toggle_mode') }}: {{ formatShortcutDisplay(settings.overlay.toggle_mode_key) }}</p>
     </div>
   </div>
 </template>
@@ -893,17 +898,6 @@ const updateSize = async () => {
   font-weight: bold;
   margin-top: 2px;
 }
-.netracell-tip {
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
-  justify-content: center;
-  padding: 4px 5px;
-}
-.netracell-icon {
-  width: 40px;
-  height: 40px;
-}
 
 .drag-overlay {
   position: absolute;
@@ -921,7 +915,6 @@ const updateSize = async () => {
 }
 .drag-overlay > p {
   text-wrap: nowrap;
-  color: red;
-  font-weight: bold;
+  color: yellow;
 }
 </style>

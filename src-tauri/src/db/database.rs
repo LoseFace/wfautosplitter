@@ -8,8 +8,9 @@ pub fn init_db() -> Connection {
     let conn = Connection::open(path).expect("failed to open database");
 
     let schema = include_str!("schema.sql");
+    conn.execute_batch(schema).expect("failed to apply schema");
 
-    conn.execute_batch(&schema).expect("failed to apply schema");
+    let _ = conn.execute_batch("ALTER TABLE runs ADD COLUMN success INTEGER NOT NULL DEFAULT 1;");
 
     conn
 }

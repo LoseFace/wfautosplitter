@@ -6,7 +6,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::db::database::init_db;
-use crate::db::runs::{insert_run, increment_aborts, Run, Split};
+use crate::db::runs::{insert_run, increment_aborts, get_runs, Run, Split};
 
 #[derive(Serialize, Clone)]
 pub struct OverlaySplit {
@@ -46,9 +46,7 @@ struct OverlayBridgeState {
     exclude_time_between_groups: bool,
     is_running: bool,
     is_trigger_only: bool,
-    netracell_icons: Vec<String>,
     template_id: String,
-    player_nickname: String,
 }
 
 impl OverlayBridge {
@@ -73,9 +71,7 @@ impl OverlayBridge {
                 exclude_time_between_groups: false,
                 is_running: false,
                 is_trigger_only: false,
-                netracell_icons: Vec::new(),
                 template_id: String::new(),
-                player_nickname: String::new(),
             };
 
             while let Ok(event) = self.receiver.recv() {
@@ -83,7 +79,6 @@ impl OverlayBridge {
                     LogEvent::RunStarted {
                         template_id,
                         template_name,
-                        player_nickname,
                         sequential_mode,
                         exclude_time_between_groups,
                         group_id,
@@ -91,11 +86,9 @@ impl OverlayBridge {
                         run_start_time,
                     } => {
                         state.template_id = template_id;
-
                         state.template_name = template_name;
                         state.sequential_mode = sequential_mode;
                         state.exclude_time_between_groups = exclude_time_between_groups;
-                        state.player_nickname = player_nickname;
                         state.splits.clear();
                         state.added_groups.clear();
                         state.run_start_time = run_start_time;
@@ -216,17 +209,62 @@ impl OverlayBridge {
                     }
 
                     LogEvent::RunReset => {
-                        if state.is_running
-                            && !state.template_id.is_empty()
-                            && !state.player_nickname.is_empty()
-                        {
-                            let mut conn = init_db();
-                            if let Err(e) = increment_aborts(
-                                &mut conn,
-                                &state.player_nickname,
-                                &state.template_id,
-                            ) {
-                                eprintln!("[DB] Failed to increment aborts: {}", e);
+                        if state.is_running && !state.template_id.is_empty() {
+                            let completed_splits: Vec<Split> = state
+                                .splits
+                                .iter()
+                                .filter(|s| s.is_completed)
+                                .map(|s| Split {
+                                    split_index: s.order as i64,
+                                    split_name: s.name.clone(),
+                                    split_time: s.split_time.unwrap_or(0.0),
+                                })
+                                .collect();
+
+                            let mut check_conn = init_db();
+                            let has_existing_runs = get_runs(&mut check_conn, Some(&state.template_id))
+                                .map(|r: Vec<_>| !r.is_empty())
+                                .unwrap_or(false);
+
+                            if !completed_splits.is_empty() && has_existing_runs {
+                                let created_at = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64;
+
+                                let total_time = completed_splits
+                                    .last()
+                                    .map(|s| s.split_time)
+                                    .unwrap_or(0.0);
+
+                                let run = Run {
+                                    id: None,
+                                    template_id: state.template_id.clone(),
+                                    template_name: state.template_name.clone(),
+                                    created_at,
+                                    total_time,
+                                    splits: completed_splits,
+                                    success: false,
+                                };
+
+                                let mut conn = init_db();
+                                match insert_run(&mut conn, run) {
+                                    Ok(id) => {
+                                        let _ = self.app_handle.emit("run-saved", id);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("[DB] Failed to save aborted run: {}", e);
+                                    }
+                                }
+                            }
+
+                            if has_existing_runs {
+                                let mut conn = init_db();
+                                if let Err(e) = increment_aborts(&mut conn, &state.template_id) {
+                                    eprintln!("[DB] Failed to increment aborts: {}", e);
+                                } else {
+                                    let _ = self.app_handle.emit("abort-incremented", ());
+                                }
                             }
                         }
 
@@ -234,8 +272,7 @@ impl OverlayBridge {
                         Self::emit_state(&self.app_handle, &state);
                     }
 
-                    LogEvent::RunFinished { total_time, player_nickname } => {
-                        state.player_nickname = player_nickname.clone();
+                    LogEvent::RunFinished { total_time } => {
                         state.is_running = false;
                         state.current_timer = Some(total_time);
                         Self::emit_state(&self.app_handle, &state);
@@ -258,18 +295,17 @@ impl OverlayBridge {
 
                         let run = Run {
                             id: None,
-                            nickname: player_nickname,
                             template_id: state.template_id.clone(),
                             template_name: state.template_name.clone(),
                             created_at,
                             total_time,
                             splits,
+                            success: true,
                         };
 
                         let mut conn = init_db();
                         match insert_run(&mut conn, run) {
                             Ok(id) => {
-                                // println!("[DB] Run saved, id={}", id);
                                 let _ = self.app_handle.emit("run-saved", id);
                             }
                             Err(e) => {
@@ -285,11 +321,6 @@ impl OverlayBridge {
 
                     LogEvent::TimerResume => {
                         let _ = self.app_handle.emit("timer-resume", ());
-                    }
-
-                    LogEvent::NetracellIcons { icons } => {
-                        state.netracell_icons = icons.clone();
-                        let _ = self.app_handle.emit("netracell-icons", icons);
                     }
                 }
             }
@@ -313,17 +344,14 @@ impl OverlayBridge {
             })
             .collect();
 
+        let start_order = state.splits.len() as u32;
+        for split in &mut new_splits {
+            split.order = start_order + split.order;
+        }
+
         if state.sequential_mode {
-            let start_order = state.splits.len() as u32;
-            for split in &mut new_splits {
-                split.order = start_order + split.order;
-            }
             state.splits.extend(new_splits);
         } else {
-            let start_order = state.splits.len() as u32;
-            for split in &mut new_splits {
-                split.order = start_order + split.order;
-            }
             state.splits.append(&mut new_splits);
         }
 

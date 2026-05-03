@@ -3,6 +3,12 @@ import { watch, onMounted } from 'vue'
 import { settings } from "../services/settings"
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import KeybindCapture from '../views/components/KeybindCapture.vue'
+import { invoke } from "@tauri-apps/api/core"
+import { updateGlobalShortcut } from "../services/settings"
+import type { AppSettings } from "../types/settings"
+import { provideKeybindContext } from '../composables/useKeybindContext'
+
+provideKeybindContext()
 
 const syncOverlayVisibility = async () => {
   const overlayWindow = await WebviewWindow.getByLabel('overlay-window')
@@ -13,6 +19,13 @@ const syncOverlayVisibility = async () => {
   } else {
     await overlayWindow.hide()
   }
+}
+
+const resetOverlaySettings = async () => {
+  const defaults = await invoke<AppSettings>("get_default_settings")
+  Object.assign(settings.overlay, defaults.overlay)
+  await invoke("set_settings", { newSettings: { ...settings } })
+  await updateGlobalShortcut()
 }
 
 const preventInput = (event: KeyboardEvent) => {
@@ -104,6 +117,41 @@ onMounted(async () => {
         </div>
       </div>
 
+      <div class="time-accuracy">
+        {{ $t('time_accuracy') }}:
+        <select
+          id="accuracy"
+          v-model="settings.overlay.time_accuracy"
+        >
+          <option value="seconds">
+            {{ $t('accuracy_s') }}
+          </option>
+          <option value="tenths">
+            {{ $t('accuracy_t') }}
+          </option>
+          <option value="hundredths">
+            {{ $t('accuracy_h') }}
+          </option>
+          <option value="milliseconds">
+            {{ $t('accuracy_m') }}
+          </option>
+        </select>
+      </div>
+
+      <div class="time-gold">
+        {{ $t('time_gold') }}:
+        <select
+          id="gold"
+          v-model="settings.overlay.time_gold"
+        >
+          <option value="segments">
+            {{ $t('segments') }}
+          </option>
+          <option value="splits">
+            {{ $t('splits') }}
+          </option>
+        </select>
+      </div>
 
       <div class="split-separators">
         <label class="custom-checkbox">
@@ -162,38 +210,6 @@ onMounted(async () => {
           @keypress="preventInput"
         >
       </div>
-  
-      <div class="time-accuracy">
-        {{ $t('time_accuracy') }}:
-        <select
-          id="accuracy"
-          v-model="settings.overlay.time_accuracy"
-        >
-          <option value="seconds">
-            {{ $t('accuracy_s') }}
-          </option>
-          <option value="tenths">
-            {{ $t('accuracy_t') }}
-          </option>
-          <option value="hundredths">
-            {{ $t('accuracy_h') }}
-          </option>
-          <option value="milliseconds">
-            {{ $t('accuracy_m') }}
-          </option>
-        </select>
-      </div>
-
-      <div class="netracell-tip">
-        <label class="custom-checkbox">
-          {{ $t('netracell_tip') }}
-          <input
-            type="checkbox"
-            v-model="settings.overlay.netracell_tip"
-          />
-          <span class="checkmark"></span>
-        </label>
-      </div>
 
       <div class="overlay-separator"></div>
 
@@ -206,6 +222,7 @@ onMounted(async () => {
         <KeybindCapture 
           v-model="settings.overlay.toggle_visibility_key"
           :disabled="!settings.overlay.show"
+          :other-keys="[settings.overlay.toggle_mode_key, settings.overlay.run_reset_key]"
         />
       </div>
 
@@ -214,6 +231,7 @@ onMounted(async () => {
         <KeybindCapture 
           v-model="settings.overlay.toggle_mode_key"
           :disabled="!settings.overlay.show"
+          :other-keys="[settings.overlay.toggle_visibility_key, settings.overlay.run_reset_key]"
         />
       </div>
 
@@ -222,7 +240,14 @@ onMounted(async () => {
         <KeybindCapture 
           v-model="settings.overlay.run_reset_key"
           :disabled="!settings.overlay.show"
+          :other-keys="[settings.overlay.toggle_visibility_key, settings.overlay.toggle_mode_key]"
         />
+      </div>
+
+      <div class="overlay-separator"></div>
+
+      <div class="reset-overlay-settings">
+        <button @click="resetOverlaySettings">{{ $t('reset_overlay_settings') }}</button>
       </div>
     </fieldset>
   </div>
@@ -261,9 +286,6 @@ fieldset > div:hover{
 .input-sum-of-last-runs{
   box-shadow: 0px 1px 0px gray;
 }
-.time-accuracy > select{
-  padding: 2px 2px 2px 0;
-}
 .enable-overlay-desc,
 .number-of-splits-desc,
 .fake-timer-desc{
@@ -271,10 +293,14 @@ fieldset > div:hover{
   margin-top: 5px;
 }
 
+.reset-overlay-settings button{
+  height: 30px;
+}
+
 .overlay-separator{
   background-color: rgba(0, 0, 0, 0.5);
   padding: 0px;
-  margin: 10px 0px 10px 3px;
+  margin: 10px 0 0 3px;
   height: 3px;
 }
 .overlay-separator:hover{

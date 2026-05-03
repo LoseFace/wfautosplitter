@@ -129,7 +129,6 @@ const addingTemplates = ref<Set<string>>(new Set())
 const loadDefaultTemplates = async () => {
   try {
     defaultTemplates.value = await invoke('get_default_templates')
-    console.log('default templates loaded:', defaultTemplates.value.length)
   } catch (e: any) {
     alert('Error: ' + e)
   }

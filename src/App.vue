@@ -9,7 +9,6 @@ import MissionsView from './views/Races.vue'
 import OverlayView from './views/Overlay.vue'
 import SettingsView from './views/Settings.vue'
 import TemplatesView from './views/TemplatesView.vue'
-import imgProfile from './imgs/profile.png'
 import imgTimer from './imgs/timer.png'
 import imgTemplate from './imgs/template.png'
 import imgOverlay from './imgs/overlay.png'
@@ -131,43 +130,13 @@ onMounted(async () => {
     } catch {}
   })
 
-  unlisten = await listen<string>('log-line', (event) => {
-    console.log('LOG FROM RUST:', event.payload)
-  })
-
-  const unlistenNickname = await listen<string>('player-nickname', (event) => {
-    playerNickname.value = event.payload
-    console.log('Player nickname updated:', event.payload)
-  })
-
-  unlisten = () => {
-    if (unlisten) unlisten()
-    unlistenNickname()
-  }
+  unlisten = await listen<string>('log-line', () => {})
 
 })
 
 onBeforeUnmount(() => {
   if (unlisten) {
     unlisten()
-  }
-})
-
-const playerNickname = ref<string | null>(null)
-
-onMounted(async () => {
-  try {
-    const result = await invoke<{
-      lines: string[],
-      nickname: string | null
-    }>('read_log_snapshot', {
-      path: settings.interface.path_log
-    })
-
-    playerNickname.value = result.nickname?.replace(/\s*\(.*\)$/, '') ?? null
-
-  } catch (err) {
-    console.error('Snapshot error:', err)
   }
 })
 </script>
@@ -181,47 +150,38 @@ onMounted(async () => {
       @mouseenter="openMenu"
       @mouseleave="closeMenu"
     >
-      <div ref="contentRef" class="menu-content">
+      <nav class="nav" ref="contentRef">          
+        <button @click="currentView = 'races'; racesKey++">
+          <img :src="imgTimer">
+          <span class="text">{{ $t('races') }}</span>
+        </button>
 
-        <div class="profile">
-          <img class="avatar" :src="imgProfile">
-          <span class="text">{{playerNickname}}</span>
-        </div>
+        <button @click="currentView = 'templates'">
+          <img :src="imgTemplate">
+          <span class="text">{{ $t('templates') }}</span>
+        </button>
 
-        <nav class="nav">          
-          <button @click="currentView = 'races'; racesKey++">
-            <img :src="imgTimer">
-            <span class="text">{{ $t('races') }}</span>
-          </button>
+        <button @click="currentView = 'overlay'">
+          <img :src="imgOverlay">
+          <span class="text">{{ $t('overlay') }}</span>
+        </button>
 
-          <button @click="currentView = 'templates'">
-            <img :src="imgTemplate">
-            <span class="text">{{ $t('templates') }}</span>
-          </button>
+        <button @click="currentView = 'settings'">
+          <img :src="imgSettings">
+          <span class="text">{{ $t('settings') }}</span>
+        </button>
 
-          <button @click="currentView = 'overlay'">
-            <img :src="imgOverlay">
-            <span class="text">{{ $t('overlay') }}</span>
-          </button>
-
-          <button @click="currentView = 'settings'">
-            <img :src="imgSettings">
-            <span class="text">{{ $t('settings') }}</span>
-          </button>
-
-          <button v-if="hasUpdate" class="update-button" @click="handleUpdate">
-            <img :src="imgUpdate">
-            <span class="text">{{ $t('update') }}</span>
-          </button>
-        </nav>
-      </div>
+        <button v-if="hasUpdate" class="update-button" @click="handleUpdate">
+          <img :src="imgUpdate">
+          <span class="text">{{ $t('update') }}</span>
+        </button>
+      </nav>
     </aside>
 
     <div class="content">
       <component
         :is="views[currentView]"
         :key="currentView === 'races' ? racesKey : currentView"
-        v-bind="currentView === 'races' ? { nickname: playerNickname } : {}"
       />
     </div>
 
@@ -256,12 +216,6 @@ onMounted(async () => {
   overflow: auto;
 }
 
-.menu-content {
-  display: flex;
-  flex-direction: column;
-  white-space: nowrap;
-}
-
 .update{
   height: 100px;
   width: 100%;
@@ -271,22 +225,13 @@ onMounted(async () => {
   background-color: green;
 }
 
-.profile {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  height: 50px;
-}
-
 .nav {
   display: flex;
   flex-direction: column;
-  padding-top: 20px;
+  white-space: nowrap;
 }
 
-.nav button,
-.update-button{
+.nav button{
   display: flex;
   align-items: center;
   gap: 10px;
@@ -298,8 +243,7 @@ onMounted(async () => {
   text-align: left;
 }
 
-.avatar, .nav img,
-.update-button img{
+.nav img{
   width: 25px;
   height: 25px;
   flex-shrink: 0;

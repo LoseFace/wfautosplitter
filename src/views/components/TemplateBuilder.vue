@@ -6,6 +6,7 @@ import { useTooltip } from '../../composables/useTooltip'
 
 import imgGarbage from '../../imgs/garbage.png'
 import imgPlus from '../../imgs/plus.png'
+import imgHelp from '../../imgs/help.png'
  
 const { t } = useI18n()
  
@@ -94,6 +95,27 @@ const excludeTimeBetweenGroups = ref(false)
 const editingTemplateId = ref<string | null>(null)
  
 const isEditing = computed(() => editingTemplateId.value !== null)
+const showSaveConfirm = ref(false)
+const showDeleteConfirm = ref(false)
+
+const onConfirmKeydown = (e: KeyboardEvent) => {
+  if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault()
+    document.removeEventListener('keydown', onConfirmKeydown)
+    deleteTemplateFromDb()
+  } else if (e.key === 'Escape') {
+    showDeleteConfirm.value = false
+    document.removeEventListener('keydown', onConfirmKeydown)
+  }
+}
+
+watch(showDeleteConfirm, (val) => {
+  if (val) {
+    document.addEventListener('keydown', onConfirmKeydown)
+  } else {
+    document.removeEventListener('keydown', onConfirmKeydown)
+  }
+})
  
 const buildTemplatePayload = () => {
   const groupsPayload = groups.value.map(g => {
@@ -147,20 +169,32 @@ const saveTemplate = async () => {
     return
   }
 
-  const payload = buildTemplatePayload()
+  if (isEditing.value && templateName.value !== props.templateData?.name) {
+    showSaveConfirm.value = true
+    return
+  }
 
+  await doSave(false)
+}
+
+const doSave = async (asNew: boolean) => {
+  const payload = buildTemplatePayload()
   try {
     if (isEditing.value) {
-      if (templateName.value !== props.templateData?.name) {
-        await invoke('delete_template', { templateId: editingTemplateId.value })
+      if (asNew) {
         payload.id = crypto.randomUUID()
         await invoke('create_template', { template: payload })
       } else {
         await invoke('update_template', { template: payload })
+        await invoke('rename_template_runs', {
+          templateId: editingTemplateId.value,
+          newName: templateName.value
+        })
       }
     } else {
       await invoke('create_template', { template: payload })
     }
+    showSaveConfirm.value = false
     emit('back')
   } catch (e) {
     console.error(e)
@@ -521,7 +555,7 @@ const isTemplateValid = computed(() => {
       <button
         v-if="isEditing"
         class="button button--danger"
-        @click="deleteTemplateFromDb()"
+        @click="showDeleteConfirm = true"
       >
         {{ $t('delete') }}
       </button>
@@ -564,6 +598,14 @@ const isTemplateValid = computed(() => {
               :placeholder="$t('placeholder_start_code')"
               v-model="group.startCode">
             <button class="template-name-clear" @click="clearField(group, 'startCode', startCodeInputs.get(group.id) ?? null)">⌫</button>
+            <img
+              class="help-input"
+              :src="imgHelp"
+              v-if="groupIndex === 0"
+              @mouseenter="showTooltip($event, $t('input_codes_help'))"
+              @mousemove="moveTooltip"
+              @mouseleave="hideTooltip"
+            >
             <input
               :ref="(el) => { if (el) missionCodeInputs.set(group.id, el as HTMLInputElement) }"
               type="text"
@@ -646,6 +688,43 @@ const isTemplateValid = computed(() => {
         </button>
       </div>
     </div>
+    <Transition name="confirm-fade">
+      <div
+        v-if="showSaveConfirm"
+        class="confirm-overlay"
+        @click.self="showSaveConfirm = false"
+      >
+        <div class="confirm-dialog">
+          <p class="confirm-text">{{ $t('confirm_save')}}</p>
+          <p class="confirm-name">{{ templateName }}</p>
+          <div class="confirm-actions">
+            <button class="button" @click="doSave(true)">{{$t('save_as_new')}}</button>
+            <button class="button" @click="doSave(false)">{{$t('change_this')}}</button>
+            <button class="button" @click="showSaveConfirm = false">{{$t('cancel')}}</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+    <Transition name="confirm-fade">
+      <div
+        v-if="showDeleteConfirm"
+        class="confirm-overlay"
+        @click.self="showDeleteConfirm = false"
+      >
+        <div class="confirm-dialog">
+          <p class="confirm-text">{{ $t('confirm_delete') }}</p>
+          <p class="confirm-name">{{ templateName }}</p>
+          <div class="confirm-actions">
+            <button class="button button--danger" @click="deleteTemplateFromDb()">
+              {{ $t('delete') }}
+            </button>
+            <button class="button" @click="showDeleteConfirm = false">
+              {{ $t('cancel') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
   <div
     v-if="tooltipState.visible"
@@ -662,6 +741,7 @@ const isTemplateValid = computed(() => {
 
 <style scoped>
 .template-builder{
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -699,7 +779,7 @@ const isTemplateValid = computed(() => {
 .template-group{
   display: flex;
   flex-direction: row;
-  width: fit-content;
+  width: max-content;
   box-shadow: 0 0 0 2px rgba(0,0,0,0.5);
   background-color: var(--stngs-bg-color);
   transition: background-color 0.3s;
@@ -707,9 +787,12 @@ const isTemplateValid = computed(() => {
 .template-splits{
   display: flex;
   flex-direction: column;
-  width: fit-content;
+  width: max-content;
   gap: 10px;
   padding: 10px 10px 10px 0px;
+}
+.template-split{
+  width: max-content;
 }
 .template-split:has(> .split-delete:hover) {
   background-color: rgba(255, 0, 0, 0.3);
@@ -728,6 +811,11 @@ const isTemplateValid = computed(() => {
 .template-split > input,
 .template-finish > input{
   text-align: center;
+}
+.help-input{
+  width: 25px;
+  height: 25px;
+  align-self: center;
 }
 .delete-group {
   width: 30px;
@@ -857,5 +945,61 @@ const isTemplateValid = computed(() => {
 }
 .validation-wrapper{
   display: contents;
+}
+
+.confirm-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.confirm-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  padding: 10px;
+  background: var(--stngs-bg-color);
+  box-shadow: 0 0 100px 50px rgba(0, 0, 0, 0.7);
+}
+
+.confirm-text {
+  margin: 0;
+  color: var(--text-color);
+  text-align: center;
+}
+
+.confirm-name {
+  margin: 0;
+  font-weight: bold;
+  color: var(--text-color);
+  text-align: center;
+  word-break: break-word;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  margin-top: 6px;
+}
+.confirm-actions > button{
+  height: 30px;
+}
+
+.confirm-fade-enter-active,
+.confirm-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.confirm-fade-enter-from,
+.confirm-fade-leave-to {
+  opacity: 0;
 }
 </style>

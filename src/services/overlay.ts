@@ -55,21 +55,17 @@ export function setResumeTimerCallback(callback: () => void) {
 export function initOverlayListener() {
     listen<OverlayState>("overlay-update", (event) => {
         overlayState.value = event.payload
-        console.log("Overlay updated:", overlayState.value.is_trigger_only, overlayState.value.is_running)
         
         if (overlayState.value.is_trigger_only && overlayState.value.is_running && startTimerCallback) {
-            console.log("Trigger-only template detected, starting timer from overlay.ts")
             startTimerCallback()
         }
         
         if (!overlayState.value.is_running && overlayState.value.current_timer !== null && stopTimerCallback) {
-            console.log("Run finished, stopping timer with final time:", overlayState.value.current_timer)
             stopTimerCallback(overlayState.value.current_timer)
         }
     })
 
     listen("first-split-received", () => {
-        console.log("First split received, timer should start")
         if (startTimerCallback && overlayState.value.is_running) {
             startTimerCallback()
         }
@@ -77,21 +73,18 @@ export function initOverlayListener() {
     })
     
     listen<number>("timer-pause", (event) => {
-        console.log("Timer pause received, frozen at:", event.payload)
         if (pauseTimerCallback) {
             pauseTimerCallback(event.payload)
         }
     })
 
     listen("timer-resume", () => {
-        console.log("Timer resume received")
         if (resumeTimerCallback) {
             resumeTimerCallback()
         }
     })
 
     listen("run-reset", () => {
-        console.log("Run reset, resetting timer flags")
         firstSplitReceived.value = false
         if (stopTimerCallback) {
             stopTimerCallback(null)

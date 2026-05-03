@@ -1,39 +1,26 @@
 use super::loader::load_templates;
 use super::models::StepType;
 use super::runtime::RuntimeTemplate;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use super::events::{LogEvent, SplitInfo};
 use crossbeam_channel::Sender;
 use uuid::Uuid;
+use std::collections::HashSet;
 
 pub struct LogParser {
     templates: Vec<RuntimeTemplate>,
     active_run: Option<usize>,
-
     cancel_keyword: String,
     exit_keyword: String,
     failed_keyword: String,
-
     templates_modified: Option<std::time::SystemTime>,
-
-    player_nickname: Option<String>,
-
     event_sender: Option<Sender<LogEvent>>,
-
     mission_aborts: i64,
-
-    netracell_icons: Vec<String>,
-    netracell_icon_count: usize,
 }
 
 impl LogParser {
     pub fn with_event_sender(mut self, sender: Sender<LogEvent>) -> Self {
         self.event_sender = Some(sender);
-        self
-    }
-
-    pub fn with_nickname(mut self, nickname: Option<String>) -> Self {
-        self.player_nickname = nickname;
         self
     }
 
@@ -43,22 +30,80 @@ impl LogParser {
         }
     }
 
-    fn matches_trigger(line: &str, trigger_keyword: &str) -> bool {
-        if trigger_keyword.contains("&&") {
-            trigger_keyword
-                .split("&&")
-                .any(|kw| line.contains(kw.trim()))
+    fn matches_keyword(line: &str, keyword: &str) -> bool {
+        if keyword.contains("||") {
+            keyword.split("||").any(|kw| line.contains(kw.trim()))
         } else {
-            line.contains(trigger_keyword)
+            line.contains(keyword)
         }
     }
 
+    fn matches_trigger(line: &str, keyword: &str) -> bool {
+        Self::matches_keyword(line, keyword)
+    }
+
     fn matches_mission_code(line: &str, code: &str) -> bool {
-        if code.contains("&&") {
-            code.split("&&")
-                .any(|kw| line.contains(kw.trim()))
+        if code.contains("||") {
+            code.split("||").any(|kw| Self::mission_code_word_match(line, kw.trim()))
         } else {
-            line.contains(code)
+            Self::mission_code_word_match(line, code)
+        }
+    }
+
+    fn mission_code_word_match(line: &str, code: &str) -> bool {
+        let Some(pos) = line.find(code) else { return false };
+        let after = &line[pos + code.len()..];
+        !after.starts_with(|c: char| c.is_ascii_alphanumeric() || c == '_')
+    }
+
+    fn matches_trigger_seq(
+        line: &str,
+        keyword: &str,
+        group_idx: usize,
+        step_idx: usize,
+        pending: &mut HashSet<(usize, usize)>,
+    ) -> bool {
+        let key = (group_idx, step_idx);
+        if pending.contains(&key) {
+            let second = keyword.splitn(2, "=>").nth(1).unwrap_or("").trim();
+            if Self::matches_keyword(line, second) {
+                pending.remove(&key);
+                return true;
+            }
+        } else {
+            let first = keyword.splitn(2, "=>").next().unwrap_or("").trim();
+            if Self::matches_keyword(line, first) {
+                pending.insert(key);
+            }
+        }
+        false
+    }
+
+    fn check_trigger(
+        line: &str,
+        keyword: &str,
+        group_idx: usize,
+        step_idx: usize,
+        pending: &mut HashSet<(usize, usize)>,
+    ) -> bool {
+        if keyword.contains("=>") {
+            Self::matches_trigger_seq(line, keyword, group_idx, step_idx, pending)
+        } else {
+            Self::matches_trigger(line, keyword)
+        }
+    }
+
+    fn check_mission_code(
+        line: &str,
+        code: &str,
+        group_idx: usize,
+        step_idx: usize,
+        pending: &mut HashSet<(usize, usize)>,
+    ) -> bool {
+        if code.contains("=>") {
+            Self::matches_trigger_seq(line, code, group_idx, step_idx, pending)
+        } else {
+            Self::matches_mission_code(line, code)
         }
     }
 
@@ -77,7 +122,6 @@ impl LogParser {
         if let Some(index) = self.active_run {
             let runtime = &mut self.templates[index];
             let name = runtime.template.name.clone();
-            println!("[{}] RUN RESET (templates updated)", name);
             runtime.reset();
             self.send_event(LogEvent::RunReset);
             self.active_run = None;
@@ -99,22 +143,6 @@ impl LogParser {
             .map(RuntimeTemplate::new)
             .collect();
         self.templates = templates;
-        println!("Template has been updated");
-    }
-
-    fn extract_netracell_icon(line: &str) -> Option<String> {
-        const VALID: &[&str] = &["01","02","03","04","05","06","07","09"];
-        let keyword = "BurdenHudIcon";
-        if let Some(pos) = line.find(keyword) {
-            let after = &line[pos + keyword.len()..];
-            if after.len() >= 2 {
-                let num = &after[..2];
-                if VALID.contains(&num) {
-                    return Some(num.to_string());
-                }
-            }
-        }
-        None
     }
 
     fn extract_time(line: &str) -> Option<f64> {
@@ -132,38 +160,6 @@ impl LogParser {
         line[..end].parse::<f64>().ok()
     }
 
-    // fn format_time(sec: f64) -> String {
-    //     let total_ms = (sec * 1000.0) as u64;
-    //     let ms = total_ms % 1000;
-    //     let total_s = total_ms / 1000;
-    //     let s = total_s % 60;
-    //     let total_m = total_s / 60;
-    //     let m = total_m % 60;
-    //     let h = total_m / 60;
-
-    //     let mut out = String::new();
-    //     if h > 0 { out.push_str(&format!("{}h ", h)); }
-    //     if m > 0 { out.push_str(&format!("{}m ", m)); }
-    //     out.push_str(&format!("{}s ", s));
-    //     out.push_str(&format!("{}ms", ms));
-    //     out
-    // }
-
-    fn detect_player_login(&mut self, line: &str, app: &AppHandle) {
-        let keyword = "Logged in ";
-        if let Some(pos) = line.find(keyword) {
-            let part = &line[pos + keyword.len()..];
-            if let Some(end) = part.find('(') {
-                let nickname = part[..end].trim().to_string();
-                if self.player_nickname.as_ref() != Some(&nickname) {
-                    self.player_nickname = Some(nickname.clone());
-                    let _ = app.emit("player-nickname", &nickname);
-                    // println!("Player nickname updated: {}", nickname);
-                }
-            }
-        }
-    }
-
     pub fn new() -> Self {
         let templates = load_templates()
             .into_iter()
@@ -178,20 +174,15 @@ impl LogParser {
             exit_keyword: "Exiting main loop".to_string(),
             failed_keyword: "EndOfMatch.lua: Mission Failed".to_string(),
             templates_modified: None,
-            player_nickname: None,
             event_sender: None,
             mission_aborts: 0,
-            netracell_icons: Vec::new(),
-            netracell_icon_count: 0,
         };
 
         parser.reload_templates();
         parser
     }
 
-    pub fn process_line(&mut self, line: &str, app: &AppHandle) {
-        self.detect_player_login(line, app);
-
+    pub fn process_line(&mut self, line: &str, _app: &AppHandle) {
         if line.contains(&self.cancel_keyword)
             || line.contains(&self.exit_keyword)
             || line.contains(&self.failed_keyword)
@@ -200,23 +191,9 @@ impl LogParser {
             return;
         }
 
-        if self.active_run.is_some() && self.netracell_icon_count < 4 {
-            if let Some(num) = Self::extract_netracell_icon(line) {
-                if !self.netracell_icons.contains(&num) {
-                    self.netracell_icons.push(num);
-                    self.netracell_icon_count += 1;
-                    if self.netracell_icon_count == 4 {
-                        self.send_event(LogEvent::NetracellIcons {
-                            icons: self.netracell_icons.clone(),
-                        });
-                    }
-                }
-            }
-        }
         if let Some(index) = self.active_run {
             if self.handle_mission_mismatch(index, line) {
                 self.try_start_new_run(line);
-                self.netracell_icon_count = 0;
                 return;
             }
 
@@ -242,21 +219,12 @@ impl LogParser {
                         group_splits,
                     });
                 }
-
-                // println!("[{}] Added new group: {}",
-                //     self.templates[index].template.name,
-                //     self.templates[index].template.groups[new_group_idx].steps[0].split_name);
             }
 
             let runtime = &mut self.templates[index];
             let event_sender = self.event_sender.as_ref();
 
-            if Self::process_template(
-                event_sender,
-                runtime,
-                line,
-                self.player_nickname.as_deref().unwrap_or(""),
-            ) {
+            if Self::process_template(event_sender, runtime, line) {
                 self.active_run = None;
             }
 
@@ -267,11 +235,8 @@ impl LogParser {
     }
 
     fn try_start_new_run(&mut self, line: &str) {
-        self.netracell_icons.clear();
-        self.netracell_icon_count = 0;
-        
         for i in 0..self.templates.len() {
-            if let Some(group_index) = Self::try_start_group(&self.templates[i], line) {
+            if let Some(group_index) = Self::try_start_group(&mut self.templates[i], line) {
                 let runtime = &mut self.templates[i];
                 self.active_run = Some(i);
                 runtime.state = super::runtime::RunState::Running;
@@ -280,7 +245,6 @@ impl LogParser {
 
                 let trigger_only = Self::is_trigger_only_template(runtime);
                 let name = runtime.template.name.clone();
-                // println!("[{}] START RUN", name);
 
                 if let Some(sender) = &self.event_sender {
                     let group = &runtime.template.groups[group_index];
@@ -306,60 +270,42 @@ impl LogParser {
                             .collect()
                     };
 
+                    let run_start_time = if trigger_only {
+                        Self::extract_time(line)
+                    } else {
+                        None
+                    };
+
                     let _ = sender.send(LogEvent::RunStarted {
                         template_id: runtime.template.id.clone(),
                         template_name: name.clone(),
-                        player_nickname: self.player_nickname.clone().unwrap_or_default(),
                         sequential_mode: runtime.template.sequential_mode,
                         exclude_time_between_groups: runtime.template.exclude_time_between_groups,
                         group_id: group.id.clone(),
                         group_splits,
-                        run_start_time: if trigger_only { Self::extract_time(line) } else { None },
+                        run_start_time,
                     });
                 }
-
-                let runtime = &mut self.templates[i];
-                if trigger_only {
-                    runtime.step_index[group_index] = 1;
-                    if let Some(t) = Self::extract_time(line) {
-                        runtime.run_start_time = Some(t);
-                        runtime.last_split_time = Some(t);
-                    //     println!("[{}] {} - {:.3}",
-                    //         runtime.template.name,
-                    //         runtime.template.groups[group_index].steps[0].split_name,
-                    //         t);
-                    // } else {
-                    //     println!("[{}] {}",
-                    //         runtime.template.name,
-                    //         runtime.template.groups[group_index].steps[0].split_name);
-                    }
-                } else {
-                    runtime.step_index[group_index] = 0;
-                }
-
                 return;
             }
         }
     }
 
-    fn check_for_new_group(&self, index: usize, line: &str) -> Option<usize> {
-        let runtime = &self.templates[index];
+    fn check_for_new_group(&mut self, index: usize, line: &str) -> Option<usize> {
+        let runtime = &mut self.templates[index];
 
-        if runtime.template.sequential_mode {
+        if Self::is_trigger_only_template(runtime) {
             return None;
         }
 
-        for (g_idx, group) in runtime.template.groups.iter().enumerate() {
-            if runtime.finished_groups[g_idx] {
-                continue;
-            }
-            if runtime.active_group == Some(g_idx) {
+        for (g_idx, g) in runtime.template.groups.iter().enumerate() {
+            if runtime.finished_groups[g_idx] || Some(g_idx) == runtime.active_group {
                 continue;
             }
 
-            let start_step = &group.steps[0];
-            if let Some(code) = &start_step.mission_code {
-                if !code.is_empty() && Self::matches_mission_code(line, code) {
+            let start = &g.steps[0];
+            if let Some(code) = &start.mission_code {
+                if !code.is_empty() && Self::check_mission_code(line, code, g_idx, 0, &mut runtime.pending_mission) {
                     return Some(g_idx);
                 }
             }
@@ -368,11 +314,9 @@ impl LogParser {
         None
     }
 
-    pub fn reset_active_run(&mut self, reason: &str) {
+    pub fn reset_active_run(&mut self, _reason: &str) {
         if let Some(index) = self.active_run {
             let runtime = &mut self.templates[index];
-            // let name = runtime.template.name.clone();
-            // println!("[{}] {}", name, reason);
             runtime.reset();
             self.active_run = None;
             self.mission_aborts += 1;
@@ -393,9 +337,7 @@ impl LogParser {
             }
             let start = &g.steps[0];
             if let Some(code) = &start.mission_code {
-                if !code.is_empty() && Self::matches_mission_code(line, code) {
-                    // let name = runtime.template.name.clone();
-                    // println!("[{}] RUN RESET (restarted finished mission)", name);
+                if !code.is_empty() && Self::check_mission_code(line, code, g_idx, 0, &mut runtime.pending_mission) {
                     runtime.reset();
                     self.active_run = None;
                     self.send_event(LogEvent::RunReset);
@@ -407,10 +349,10 @@ impl LogParser {
         false
     }
 
-    fn try_start_group(runtime: &RuntimeTemplate, line: &str) -> Option<usize> {
+    fn try_start_group(runtime: &mut RuntimeTemplate, line: &str) -> Option<usize> {
         let trigger_only = Self::is_trigger_only_template(runtime);
 
-        for (group_index, group) in runtime.template.groups.iter().enumerate() {
+        for group_index in 0..runtime.template.groups.len() {
             if runtime.finished_groups[group_index] {
                 continue;
             }
@@ -427,17 +369,23 @@ impl LogParser {
                 }
             }
 
-            let step = &group.steps[0];
+            let step = &runtime.template.groups[group_index].steps[0];
 
             if trigger_only {
-                if Self::matches_trigger(line, &step.trigger_keyword) {
+                if Self::check_trigger(
+                    line,
+                    &step.trigger_keyword.clone(),
+                    group_index,
+                    0,
+                    &mut runtime.pending_sequence,
+                ) {
                     return Some(group_index);
                 }
                 continue;
             }
 
-            if let Some(code) = &step.mission_code {
-                if !code.is_empty() && Self::matches_mission_code(line, code) {
+            if let Some(code) = &step.mission_code.clone() {
+                if !code.is_empty() && Self::check_mission_code(line, code, group_index, 0, &mut runtime.pending_mission) {
                     return Some(group_index);
                 }
             }
@@ -450,10 +398,8 @@ impl LogParser {
         event_sender: Option<&Sender<LogEvent>>,
         runtime: &mut RuntimeTemplate,
         line: &str,
-        player_nickname: &str,
     ) -> bool {
         let time = Self::extract_time(line);
-        // let template_name = runtime.template.name.clone();
 
         if runtime.active_group.is_none() {
             if runtime.template.sequential_mode {
@@ -467,7 +413,9 @@ impl LogParser {
 
             if runtime.template.sequential_mode && runtime.active_group.is_some() {
             } else {
-                for (group_index, group) in runtime.template.groups.iter().enumerate() {
+                let trigger_only = Self::is_trigger_only_template(runtime);
+
+                for group_index in 0..runtime.template.groups.len() {
                     if runtime.finished_groups[group_index] {
                         continue;
                     }
@@ -484,9 +432,28 @@ impl LogParser {
                         }
                     }
 
-                    let step = &group.steps[0];
+                    if !trigger_only {
+                        let mission_code = runtime.template.groups[group_index].steps[0]
+                            .mission_code
+                            .clone();
+                        match mission_code {
+                            Some(ref code) if !code.is_empty() => {
+                                if !Self::check_mission_code(
+                                    line,
+                                    code,
+                                    group_index,
+                                    0,
+                                    &mut runtime.pending_mission,
+                                ) {
+                                    continue;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
 
-                    if !Self::matches_trigger(line, &step.trigger_keyword) {
+                    let keyword = runtime.template.groups[group_index].steps[0].trigger_keyword.clone();
+                    if !Self::check_trigger(line, &keyword, group_index, 0, &mut runtime.pending_sequence) {
                         continue;
                     }
 
@@ -499,13 +466,9 @@ impl LogParser {
                         }
                     }
 
-                    // if let Some(t) = time {
-                    //     println!("[{}] {} - {:.3}", template_name, step.split_name, t);
-                    // } else {
-                    //     println!("[{}] {}", template_name, step.split_name);
-                    // }
-
                     if let Some(sender) = event_sender {
+                        let group = &runtime.template.groups[group_index];
+                        let step = &group.steps[0];
                         let _ = sender.send(LogEvent::SplitCompleted {
                             group_id: group.id.clone(),
                             split_name: step.split_name.clone(),
@@ -523,20 +486,23 @@ impl LogParser {
         }
 
         let group_index = runtime.active_group.unwrap();
-        let group = &runtime.template.groups[group_index];
         let current_step = runtime.step_index[group_index];
 
-        if current_step >= group.steps.len() {
+        if current_step >= runtime.template.groups[group_index].steps.len() {
             return false;
         }
 
-        let step = &group.steps[current_step];
+        let keyword = runtime.template.groups[group_index].steps[current_step].trigger_keyword.clone();
 
-        if !Self::matches_trigger(line, &step.trigger_keyword) {
+        if !Self::check_trigger(line, &keyword, group_index, current_step, &mut runtime.pending_sequence) {
             return false;
         }
 
-        if step.step_type == StepType::StartMission {
+        let step_type = runtime.template.groups[group_index].steps[current_step].step_type.clone();
+        let split_name = runtime.template.groups[group_index].steps[current_step].split_name.clone();
+        let group_id = runtime.template.groups[group_index].id.clone();
+
+        if step_type == StepType::StartMission {
             if runtime.run_start_time.is_none() {
                 if let Some(t) = time {
                     runtime.run_start_time = Some(t);
@@ -555,10 +521,10 @@ impl LogParser {
 
         if let Some(sender) = event_sender {
             let _ = sender.send(LogEvent::SplitCompleted {
-                group_id: group.id.clone(),
-                split_name: step.split_name.clone(),
+                group_id: group_id.clone(),
+                split_name: split_name.clone(),
                 split_time: time,
-                is_end_mission: step.step_type == StepType::EndMission,
+                is_end_mission: step_type == StepType::EndMission,
             });
         }
 
@@ -566,18 +532,15 @@ impl LogParser {
 
         if let Some(t) = time {
             runtime.last_split_time = Some(t);
-        //     println!("[{}] {} - {:.3}", template_name, step.split_name, t);
-        // } else {
-        //     println!("[{}] {}", template_name, step.split_name);
         }
 
-        if step.step_type == StepType::EndMission {
+        if step_type == StepType::EndMission {
             runtime.finished_groups[group_index] = true;
             runtime.active_group = None;
 
             if let Some(sender) = event_sender {
                 let _ = sender.send(LogEvent::GroupCompleted {
-                    group_id: group.id.clone(),
+                    group_id: group_id.clone(),
                 });
             }
 
@@ -596,18 +559,12 @@ impl LogParser {
                         total = 0.0;
                     }
                     let total = (total * 1000.0).round() / 1000.0;
-                    // let formatted = Self::format_time(total);
 
                     if let Some(sender) = event_sender {
                         let _ = sender.send(LogEvent::RunFinished {
                             total_time: total,
-                            player_nickname: player_nickname.to_string(),
                         });
                     }
-
-                //     println!("[{}] END RUN {:.3} ({})", template_name, total, formatted);
-                // } else {
-                //     println!("[{}] END RUN", template_name);
                 }
 
                 runtime.reset();

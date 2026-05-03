@@ -1,65 +1,122 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, computed } from 'vue'
+import {
+  useKeybindActiveId,
+  MODIFIER_CODES, IGNORED_CODES,
+  eventToShortcutString, modifierOnlyShortcutFromKeyup, modifierParts,
+  formatShortcutDisplay,
+} from '../../composables/useKeybindContext'
 
 const props = defineProps<{
   modelValue: string
   disabled?: boolean
+  otherKeys?: string[]
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
 }>()
 
-const isCapturing = ref(false)
-const currentKey = ref(props.modelValue)
+const MY_ID = Symbol()
+const activeId = useKeybindActiveId()
 
+const isCapturing = computed({
+  get: () => activeId.value === MY_ID,
+  set: (val: boolean) => { activeId.value = val ? MY_ID : null },
+})
 
-const formatKey = (event: KeyboardEvent): string => {
-  return event.key.length === 1
-    ? event.key.toUpperCase()
-    : event.key
-}
+const currentKey    = ref(props.modelValue)
+const activeMods    = ref<string[]>([])
+const conflictError = ref(false)
+let regularKeyPressed = false
 
-const handleKeyDown = (event: KeyboardEvent) => {
-  if (!isCapturing.value) return
-  
-  event.preventDefault()
-  event.stopPropagation()
-  
-  if (event.key === 'Delete') {
-    isCapturing.value = false
-    window.removeEventListener('keydown', handleKeyDown)
+watch(() => props.modelValue, (v) => {
+  if (!isCapturing.value) { currentKey.value = v; conflictError.value = false }
+})
+
+function tryCommit(pluginStr: string, displayStr: string) {
+  if (props.otherKeys?.includes(pluginStr)) {
+    conflictError.value = true
+    stopCapture()
     return
   }
-  
-  const newKey = formatKey(event)
-  currentKey.value = newKey
-  emit('update:modelValue', newKey)
-  
+  conflictError.value = false
+  currentKey.value = displayStr
+  emit('update:modelValue', pluginStr)
+  stopCapture()
+}
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (!isCapturing.value) return
+  e.preventDefault(); e.stopPropagation()
+
+  if (IGNORED_CODES.has(e.code)) return
+
+  if (e.code === 'Escape' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+    stopCapture(); return
+  }
+
+  activeMods.value = modifierParts(e)
+
+  if (MODIFIER_CODES.has(e.code)) return
+
+  regularKeyPressed = true
+  const pluginStr = eventToShortcutString(e)
+  if (!pluginStr) return
+
+  const displayStr = formatShortcutDisplay(pluginStr)
+  tryCommit(pluginStr, displayStr)
+}
+
+const handleKeyUp = (e: KeyboardEvent) => {
+  if (!isCapturing.value) return
+  e.preventDefault(); e.stopPropagation()
+
+  if (IGNORED_CODES.has(e.code) || !MODIFIER_CODES.has(e.code)) return
+
+  activeMods.value = modifierParts(e)
+
+  if (regularKeyPressed) return
+
+  if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return
+
+  const pluginStr = modifierOnlyShortcutFromKeyup(e)
+  if (!pluginStr) return
+  tryCommit(pluginStr, pluginStr)
+}
+
+const stopCapture = () => {
   isCapturing.value = false
-  window.removeEventListener('keydown', handleKeyDown)
+  activeMods.value = []
+  regularKeyPressed = false
+  window.removeEventListener('keydown', handleKeyDown, true)
+  window.removeEventListener('keyup',   handleKeyUp,   true)
 }
 
 const startCapture = () => {
-  if (props.disabled) return
-  if (isCapturing.value) return
-  
+  if (props.disabled || isCapturing.value) return
+  conflictError.value = false
+  regularKeyPressed = false
   isCapturing.value = true
-  window.addEventListener('keydown', handleKeyDown)
+  window.addEventListener('keydown', handleKeyDown, true)
+  window.addEventListener('keyup',   handleKeyUp,   true)
 }
+
+const capturePreview = computed(() =>
+  activeMods.value.length ? activeMods.value.join('+') + '+...' : null
+)
+const displayValue = computed(() => formatShortcutDisplay(currentKey.value))
 </script>
 
 <template>
-  <div 
+  <div
     class="keybind-capture"
-    :class="{ 
-      'capturing': isCapturing,
-      'disabled': disabled 
-    }"
+    :class="{ capturing: isCapturing, disabled, conflict: conflictError }"
     @click="startCapture"
+    :title="conflictError ? $t('shortcut_conflict') : undefined"
   >
-    <span v-if="!isCapturing" class="key-value">{{ currentKey }}</span>
-    <span v-else class="key-placeholder">{{ $t('press_key') }}</span>
+    <span v-if="!isCapturing" class="key-value">{{ displayValue }}</span>
+    <span v-else class="key-placeholder">{{ capturePreview ?? $t('press_key') }}</span>
   </div>
 </template>
 
@@ -76,26 +133,21 @@ const startCapture = () => {
   background-color: var(--btn-bg-color);
   transition: 0.2s;
 }
-
 .keybind-capture:hover:not(.disabled) {
-    background-color: var(--btn-bg-hover-color);
-    transition: 0.2s;
+  background-color: var(--btn-bg-hover-color);
+  transition: 0.2s;
 }
-
 .keybind-capture.capturing {
   animation: pulse 1s infinite;
 }
-
 .keybind-capture.disabled {
   cursor: default;
 }
-
+.keybind-capture.conflict {
+  outline: 2px solid #e05050;
+}
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
 }
 </style>

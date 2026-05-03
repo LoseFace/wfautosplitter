@@ -5,12 +5,9 @@ import { useSettings } from '../composables/useSettings'
 import { applyTheme } from '../theme/themeManager'
 import { open } from '@tauri-apps/plugin-dialog'
 import { emit } from '@tauri-apps/api/event'
+import { supportedLanguages } from '../i18n'
 
 const { settings } = useSettings()
-
-/* ================= LANGUAGE ================= */
-
-const supportedLanguages = ['en', 'ru', 'uk'] as const
 const { locale } = useI18n()
 
 const selectedLanguage = ref<string>(settings.interface.language ?? 'system')
@@ -22,7 +19,7 @@ watch(selectedLanguage, async (newLang) => {
 
   if (newLang === 'system') {
     const systemLang = navigator.language.slice(0, 2)
-    resolvedLocale = supportedLanguages.includes(systemLang as any) ? systemLang : 'en'
+    resolvedLocale = supportedLanguages.includes(systemLang) ? systemLang : 'en'
   } else {
     resolvedLocale = newLang
   }
@@ -37,15 +34,13 @@ onMounted(() => {
   if (savedLang === 'system') {
     const systemLang = navigator.language.slice(0, 2)
 
-    locale.value = supportedLanguages.includes(systemLang as any)
+    locale.value = supportedLanguages.includes(systemLang)
       ? systemLang
       : 'en'
   } else {
     locale.value = savedLang
   }
 })
-
-/* ================= THEME ================= */
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -59,8 +54,6 @@ watch(theme, (newVal) => {
 onMounted(() => {
   applyTheme(theme.value)
 })
-
-/* ================= LOG PATH ================= */
 
 const logPath = ref<string>(
   settings.interface.path_log ?? '%LocalAppData%\\Warframe'
@@ -87,9 +80,9 @@ const browseFolder = async () => {
     <div class="sele">{{ $t('language') }}
       <select id="sele" v-model="selectedLanguage">
         <option value="system">{{ $t('language_system') }}</option>
-        <option value="en">English</option>
-        <option value="ru">Русский</option>
-        <option value="uk">Українська</option>
+        <option v-for="lang in supportedLanguages" :key="lang" :value="lang">
+          {{ $t('language_name', {}, { locale: lang }) }}
+        </option>
       </select>
     </div>
 

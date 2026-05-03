@@ -1,29 +1,35 @@
 import { createI18n } from 'vue-i18n'
-import en from './locales/en.json'
-import ru from './locales/ru.json'
-import uk from './locales/uk.json'
 
-const supportedLanguages = ['en', 'ru', 'uk']
+const modules = import.meta.glob('./locales/*.json', { eager: true })
+
+const messages: Record<string, any> = {}
+const supportedLanguages: string[] = []
+
+for (const path in modules) {
+  const lang = path.match(/\/([^/]+)\.json$/)?.[1]
+  if (lang) {
+    messages[lang] = (modules[path] as any).default
+    supportedLanguages.push(lang)
+  }
+}
+
+export { supportedLanguages }
 
 let savedLocale = localStorage.getItem('locale')
-
-let startLocale
+let startLocale: string
 
 if (!savedLocale || savedLocale === 'system') {
   const systemLang = navigator.language.slice(0, 2)
-
-  startLocale = supportedLanguages.includes(systemLang)
-    ? systemLang
-    : 'en'
+  startLocale = supportedLanguages.includes(systemLang) ? systemLang : 'en'
 } else {
-  startLocale = savedLocale
+  startLocale = supportedLanguages.includes(savedLocale) ? savedLocale : 'en'
 }
 
 const i18n = createI18n({
   legacy: false,
   locale: startLocale,
   fallbackLocale: 'en',
-  messages: { en, ru, uk }
+  messages,
 })
 
 export default i18n

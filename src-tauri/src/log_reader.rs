@@ -17,14 +17,8 @@ use crate::parser::overlay_bridge::OverlayBridge;
 
 pub async fn start_log_reader(app: AppHandle, path: String) -> notify::Result<()> {
     let (tx, rx) = unbounded();
-    let snapshot_nickname = crate::log_snapshot::read_log_once(path.clone())
-        .await
-        .ok()
-        .and_then(|s| s.nickname);
 
-    let parser = LogParser::new()
-        .with_nickname(snapshot_nickname)
-        .with_event_sender(tx);
+    let parser = LogParser::new().with_event_sender(tx);
     let bridge = OverlayBridge::new(rx, app.clone());
     bridge.start();
 
@@ -104,7 +98,6 @@ pub async fn start_log_reader(app: AppHandle, path: String) -> notify::Result<()
                             let mut off = offset_inner.lock().await;
                             if *off != 0 {
                                 *off = 0;
-                                // println!("File recreated → offset reset");
                             }
                         });
                     }

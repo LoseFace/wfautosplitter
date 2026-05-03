@@ -10,7 +10,6 @@
     "core:default",
     "opener:default",
     "dialog:default",
-    "global-shortcut:default",
 
     "core:event:allow-listen",
     "core:event:allow-emit",

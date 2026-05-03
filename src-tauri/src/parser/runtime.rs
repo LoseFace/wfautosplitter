@@ -1,4 +1,5 @@
 use super::models::Template;
+use std::collections::HashSet;
 
 pub enum RunState {
     Idle,
@@ -17,7 +18,10 @@ pub struct RuntimeTemplate {
 
     pub group_end_time: Vec<Option<f64>>,
     pub excluded_time: f64,
-    pub first_group_shown: bool
+    pub first_group_shown: bool,
+
+    pub pending_mission: HashSet<(usize, usize)>,
+    pub pending_sequence: HashSet<(usize, usize)>,
 }
 
 impl RuntimeTemplate {
@@ -35,7 +39,10 @@ impl RuntimeTemplate {
 
             group_end_time: vec![None; groups],
             excluded_time: 0.0,
-            first_group_shown: false
+            first_group_shown: false,
+
+            pending_mission: HashSet::new(),
+            pending_sequence: HashSet::new(),
         }
     }
 
@@ -46,6 +53,8 @@ impl RuntimeTemplate {
         self.last_split_time = None;
         self.excluded_time = 0.0;
         self.first_group_shown = false;
+        self.pending_mission.clear();
+        self.pending_sequence.clear();
 
         for v in &mut self.group_end_time {
             *v = None;
@@ -62,4 +71,3 @@ impl RuntimeTemplate {
         self.finished_groups.iter().all(|x| *x)
     }
 }
-
