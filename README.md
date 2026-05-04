@@ -40,3 +40,27 @@ that matches it.
 3. Point the app to your Warframe log file (`EE.log`)
 4. Create or import a template for the mission you want to track
 5. Activate the template and start running
+
+## Contributing Translations
+
+If you want to add a new language:
+
+1. **Fork** this repository — click the "Fork" button in the top right corner of this page
+2. In your fork, go to `src/locales/` and create a new file named by language code,
+   for example `de.json` for Deutsch, `fr.json` for French
+4. Copy the contents of [`en.json`](/src/locales/en.json) and translate all values (do not change the keys)
+5. Submit a **Pull Request** to this repository with your changes
+
+Languages for which no translation is currently available:
+   - Deutsch (de),
+   - Spanish (es),
+   - French (fr),
+   - Italian (it),
+   - Japanese (ja),
+   - Korean (ko),
+   - Polish (pl),
+   - Brazilian Portuguese (pt),
+   - Thai (th),
+   - Turkish (tr),
+   - Simplified Chinese (zh),
+   - Traditional Chinese (tc).
