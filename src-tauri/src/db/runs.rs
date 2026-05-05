@@ -314,10 +314,10 @@ pub fn get_best_segments(conn: &mut Connection, template_id: &str) -> rusqlite::
     let rows: Vec<(i64, i64, String, f64)> = {
         let mut stmt = conn.prepare(
             "SELECT s.run_id, s.split_index, s.split_name, s.split_time
-             FROM splits s
-             JOIN runs r ON s.run_id = r.id
-             WHERE r.template_id = ?1 AND COALESCE(r.success, 1) = 1
-             ORDER BY s.run_id, s.split_index",
+                FROM splits s
+                JOIN runs r ON s.run_id = r.id
+                WHERE r.template_id = ?1
+                ORDER BY s.run_id, s.split_index",
         )?;
         let result: rusqlite::Result<Vec<(i64, i64, String, f64)>> = stmt.query_map(params![template_id], |row| {
             Ok((
