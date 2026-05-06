@@ -3,7 +3,7 @@ import { ref, nextTick } from 'vue'
 import { getCurrentWindow, LogicalPosition } from '@tauri-apps/api/window'
 import { getVersion } from '@tauri-apps/api/app'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import changelogRaw from './CHANGELOG.md?raw'
+import changelogRaw from '../CHANGELOG.md?raw'
 
 import MissionsView from './views/Races.vue'
 import OverlayView from './views/Overlay.vue'

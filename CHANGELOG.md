@@ -1,0 +1,1 @@
+- Fixed an issue with the button that opens the sample file for localization.

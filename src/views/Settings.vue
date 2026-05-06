@@ -118,7 +118,7 @@ const browseFolder = async () => {
       <button class="path-browse" @click="browseCustomLocalesFolder">
         {{ $t('browse') }}
       </button>
-      <button class="path-browse" @click="exportLocaleTemplate" :disabled="!customLocalesDir">
+      <button class="path-browse" @click="exportLocaleTemplate">
         {{ $t('export_locale_template') }}
       </button>
     </div>
