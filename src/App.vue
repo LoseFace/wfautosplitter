@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { getCurrentWindow, LogicalPosition } from '@tauri-apps/api/window'
-import { useI18n } from 'vue-i18n'
 import { getVersion } from '@tauri-apps/api/app'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import changelogRaw from './CHANGELOG.md?raw'
 
 import MissionsView from './views/Races.vue'
 import OverlayView from './views/Overlay.vue'
@@ -15,7 +15,8 @@ import imgOverlay from './imgs/overlay.png'
 import imgSettings from './imgs/settings.png'
 import imgUpdate from './imgs/update.png'
 
-const { locale } = useI18n()
+const showChangelog = ref(false)
+const changelogText = ref('')
 const hasUpdate = ref(false)
 const downloadUrl = ref('')
 
@@ -44,6 +45,13 @@ function isNewerVersion(latest: string, current: string): boolean {
     if (l[i] < c[i]) return false
   }
   return false
+}
+
+async function closeChangelog() {
+  const currentVersion = await getVersion()
+  settings.last_seen_version = currentVersion
+  await invoke('set_settings', { newSettings: settings })
+  showChangelog.value = false
 }
 
 async function handleUpdate() {
@@ -97,13 +105,12 @@ let unlisten: UnlistenFn | null = null
 
 onMounted(async () => {
 
-  const supportedLanguages = ['en', 'ru', 'uk']
-  const savedLang = settings.interface.language ?? 'system'
-  if (savedLang === 'system') {
-    const systemLang = navigator.language.slice(0, 2)
-    locale.value = supportedLanguages.includes(systemLang) ? systemLang : 'en'
-  } else {
-    locale.value = savedLang
+  const currentVersion = await getVersion()
+  const lastSeen = settings.last_seen_version
+
+  if (lastSeen !== currentVersion) {
+    changelogText.value = changelogRaw
+    showChangelog.value = true
   }
 
   const logPath = settings.interface.path_log
@@ -179,6 +186,15 @@ onBeforeUnmount(() => {
     </aside>
 
     <div class="content">
+      <div v-if="showChangelog" class="changelog-overlay">
+        <div class="changelog-box">
+          <label class="changelog-header">{{ $t('changelog_header') }}</label>
+          <pre class="changelog-text">{{ changelogText }}</pre>
+          <button class="changelog-close" @click="closeChangelog">
+            {{ $t('close') }}
+          </button>
+        </div>
+      </div>
       <component
         :is="views[currentView]"
         :key="currentView === 'races' ? racesKey : currentView"
@@ -251,5 +267,45 @@ onBeforeUnmount(() => {
 
 .text {
   flex-shrink: 0;
+}
+
+.changelog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.changelog-box {
+  background: var(--bg-color);
+  box-shadow: 0 0 5px 2px rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+  width: 80vw;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 12px;
+}
+
+.changelog-header{
+  align-self: center;
+  font-size: 25px;
+}
+
+.changelog-text {
+  flex: 1;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.changelog-close {
+  align-self: center;
+  height: 30px;
 }
 </style>

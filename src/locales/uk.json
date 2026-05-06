@@ -6,6 +6,8 @@
   "overlay":"Оверлей",
   "settings":"Налаштування",
   "update":"Доступне оновлення",
+  "changelog_header":"Журнал змін",
+  "close":"Закрити",
   
   "no_races":"Тут ви побачите записи забігів",
   "loading":"Завантаження...",
@@ -103,13 +105,15 @@
   "failures":"зриви",
   "sum_of_the_last":"СОЗ",
   
-  "language":"Мова інтерфейсу:",
+  "language":"Мова інтерфейсу",
   "language_system":"Як у Windows",
-  "different_players_separately":"Зберігати дані для різних гравців окремо",
-  "path_log":"Шлях до EE.log:",
+  "custom_locales_dir":"Папка для користувацьких локалізацій",
+  "custom_locales_dir_not_set":"Папка не обрана",
+  "export_locale_template":"Зразок файлу",
+  "path_log":"Шлях до EE.log",
   "browse":"Вибрати папку",
 
-  "theme":"Тема інтурфейсу:",
+  "theme":"Тема інтурфейсу",
   "theme_default":"Як у Windows",
   "theme_dark":"Темна",
   "theme_light":"Світла"

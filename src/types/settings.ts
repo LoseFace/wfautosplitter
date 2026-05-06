@@ -6,9 +6,12 @@ export interface AppSettings {
     pos_y: number
   }
 
+  last_seen_version?: string
+
   interface: {
     theme?: "dark" | "light" | "system"
     language: string
+    custom_locales_dir?: string
     path_log: string
   }
 

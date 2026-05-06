@@ -5,12 +5,34 @@ import { useSettings } from '../composables/useSettings'
 import { applyTheme } from '../theme/themeManager'
 import { open } from '@tauri-apps/plugin-dialog'
 import { emit } from '@tauri-apps/api/event'
-import { supportedLanguages } from '../i18n'
+import { supportedLanguages, loadCustomLocales } from '../i18n'
 
 const { settings } = useSettings()
 const { locale } = useI18n()
+const customLocalesDir = ref<string>(
+  settings.interface.custom_locales_dir ?? ''
+)
+
+watch(customLocalesDir, async (val) => {
+  settings.interface.custom_locales_dir = val || undefined
+  await loadCustomLocales(val || null)
+  languagesKey.value++
+})
+
+const browseCustomLocalesFolder = async () => {
+  const selected = await open({ directory: true, multiple: false })
+  if (selected && typeof selected === 'string') {
+    customLocalesDir.value = selected
+  }
+}
+
+const exportLocaleTemplate = async () => {
+  const { openUrl } = await import('@tauri-apps/plugin-opener')
+  await openUrl('https://github.com/LoseFace/wfautosplitter/blob/main/src/locales/en.json')
+}
 
 const selectedLanguage = ref<string>(settings.interface.language ?? 'system')
+const languagesKey = ref(0)
 
 watch(selectedLanguage, async (newLang) => {
   settings.interface.language = newLang
@@ -77,8 +99,8 @@ const browseFolder = async () => {
 
 <template>
   <div class="settings">
-    <div class="sele">{{ $t('language') }}
-      <select id="sele" v-model="selectedLanguage">
+    <div class="sele">{{ $t('language') }}:
+      <select id="sele" v-model="selectedLanguage" :key="languagesKey">
         <option value="system">{{ $t('language_system') }}</option>
         <option v-for="lang in supportedLanguages" :key="lang" :value="lang">
           {{ $t('language_name', {}, { locale: lang }) }}
@@ -86,7 +108,22 @@ const browseFolder = async () => {
       </select>
     </div>
 
-    <div class="theme">{{ $t('theme') }}
+    <div class="log">
+      <div class="log-path-and-name">
+        <div class="pathLog">{{ $t('custom_locales_dir') }}:</div>
+        <div class="path-log-name">
+          {{ customLocalesDir || $t('custom_locales_dir_not_set') }}
+        </div>
+      </div>
+      <button class="path-browse" @click="browseCustomLocalesFolder">
+        {{ $t('browse') }}
+      </button>
+      <button class="path-browse" @click="exportLocaleTemplate" :disabled="!customLocalesDir">
+        {{ $t('export_locale_template') }}
+      </button>
+    </div>
+
+    <div class="theme">{{ $t('theme') }}:
       <select id="theme" v-model="theme">
         <option value="system">{{ $t('theme_default') }}</option>
         <option value="dark">{{ $t('theme_dark') }}</option>
@@ -96,7 +133,7 @@ const browseFolder = async () => {
 
     <div class="log">
       <div class="log-path-and-name">
-        <div class="pathLog">{{ $t('path_log') }}</div>
+        <div class="pathLog">{{ $t('path_log') }}:</div>
         <div class="path-log-name">{{ logPath }}</div>
       </div>
       <button class="path-browse" @click="browseFolder">

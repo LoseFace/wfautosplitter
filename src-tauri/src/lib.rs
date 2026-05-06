@@ -89,6 +89,7 @@ async fn start_log_reading(app: tauri::AppHandle, path: String) {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AppSettings {
     window: WindowSize,
+    last_seen_version: Option<String>,
     interface: InterfaceSettings,
     overlay: OverlaySettings,
 }
@@ -106,6 +107,7 @@ pub struct InterfaceSettings {
     theme: Option<String>,
     language: String,
     path_log: String,
+    pub custom_locales_dir: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -141,10 +143,12 @@ struct HotkeyStore {
 fn default_settings() -> AppSettings {
     AppSettings {
         window: WindowSize { x: 1200, y: 500, pos_x: 100, pos_y: 100 },
+        last_seen_version: None,
         interface: InterfaceSettings {
             theme: Some("system".into()),
             language: "system".into(),
             path_log: "%LOCALAPPDATA%\\Warframe".into(),
+            custom_locales_dir: None,
         },
         overlay: OverlaySettings {
             show: false,
@@ -263,6 +267,33 @@ fn unregister_shortcut_command(
     Ok(())
 }
 
+#[tauri::command]
+fn read_custom_locales(dir: String) -> Result<Vec<(String, String)>, String> {
+    let path = std::path::Path::new(&dir);
+    if !path.exists() || !path.is_dir() {
+        return Ok(vec![]);
+    }
+    let mut result = vec![];
+    for entry in fs::read_dir(path).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let file_path = entry.path();
+        if file_path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let lang_code = file_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+        if lang_code.is_empty() { continue; }
+        let content = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+        serde_json::from_str::<serde_json::Value>(&content)
+            .map_err(|_| format!("{}.json содержит невалидный JSON", lang_code))?;
+        result.push((lang_code, content));
+    }
+    Ok(result)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let initial_settings = load_settings_from_file();
@@ -323,6 +354,7 @@ pub fn run() {
 
             register_shortcut_command,
             unregister_shortcut_command,
+            read_custom_locales,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

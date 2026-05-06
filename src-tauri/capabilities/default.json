@@ -29,6 +29,8 @@
     "core:window:allow-set-cursor-grab",
 
     "fs:allow-exists",
+    "fs:allow-read-dir",
+    "fs:scope",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-mkdir",

@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n'
+import { invoke } from '@tauri-apps/api/core'
 
 const modules = import.meta.glob('./locales/*.json', { eager: true })
 
@@ -31,5 +32,21 @@ const i18n = createI18n({
   fallbackLocale: 'en',
   messages,
 })
+
+export async function loadCustomLocales(dir: string | null | undefined) {
+  if (!dir) return
+  try {
+    const locales = await invoke<[string, string][]>('read_custom_locales', { dir })
+    for (const [langCode, jsonContent] of locales) {
+      const parsed = JSON.parse(jsonContent)
+      i18n.global.setLocaleMessage(langCode, parsed)
+      if (!supportedLanguages.includes(langCode)) {
+        supportedLanguages.push(langCode)
+      }
+    }
+  } catch (e) {
+    console.error('Error loading custom locales:', e)
+  }
+}
 
 export default i18n

@@ -6,6 +6,8 @@
   "overlay":"Оверлей",
   "settings":"Настройки",
   "update":"Доступно обновление",
+  "changelog_header":"Журнал изменений",
+  "close":"Закрыть",
   
   "no_races":"Здесь вы увидите записи забегов",
   "loading":"Загрузка...",
@@ -105,8 +107,10 @@
   
   "language":"Язык интерфейса",
   "language_system":"Как в Windows",
-  "different_players_separately":"Хранить данные для разных игроков отдельно",
-  "path_log":"Путь к EE.log:",
+  "custom_locales_dir":"Папка для пользовательских переводов",
+  "custom_locales_dir_not_set":"Папка не выбрана",
+  "export_locale_template":"Файл-образец",
+  "path_log":"Путь к EE.log",
   "browse":"Выбрать папку",
 
   "theme":"Тема интерфейса",

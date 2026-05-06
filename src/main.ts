@@ -9,7 +9,7 @@ import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window"
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { invoke } from "@tauri-apps/api/core"
 import { listen, emit } from '@tauri-apps/api/event'
-import { supportedLanguages } from './i18n'
+import { supportedLanguages, loadCustomLocales } from './i18n'
 import {
   MODIFIER_CODES,
   eventToShortcutString,
@@ -97,6 +97,7 @@ async function bootstrap() {
 
   if (windowLabel === 'overlay-window') {
     await initSettings()
+    await loadCustomLocales(settings.interface?.custom_locales_dir)
     setupLocalHotkeyFallback()
     applyLang(settings.interface?.language ?? 'system')
     listenLang()
@@ -105,8 +106,8 @@ async function bootstrap() {
   }
 
   await initSettings()
+  await loadCustomLocales(settings.interface?.custom_locales_dir)
   setupLocalHotkeyFallback()
-
   applyLang(settings.interface.language ?? 'system')
   listenLang()
 

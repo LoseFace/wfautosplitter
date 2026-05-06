@@ -6,7 +6,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::db::database::init_db;
-use crate::db::runs::{insert_run, increment_aborts, get_runs, Run, Split};
+use crate::db::runs::{insert_run, increment_aborts, Run, Split};
 
 #[derive(Serialize, Clone)]
 pub struct OverlaySplit {
@@ -221,12 +221,7 @@ impl OverlayBridge {
                                 })
                                 .collect();
 
-                            let mut check_conn = init_db();
-                            let has_existing_runs = get_runs(&mut check_conn, Some(&state.template_id))
-                                .map(|r: Vec<_>| !r.is_empty())
-                                .unwrap_or(false);
-
-                            if !completed_splits.is_empty() && has_existing_runs {
+                            if !completed_splits.is_empty() {
                                 let created_at = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
@@ -258,13 +253,11 @@ impl OverlayBridge {
                                 }
                             }
 
-                            if has_existing_runs {
-                                let mut conn = init_db();
-                                if let Err(e) = increment_aborts(&mut conn, &state.template_id) {
-                                    eprintln!("[DB] Failed to increment aborts: {}", e);
-                                } else {
-                                    let _ = self.app_handle.emit("abort-incremented", ());
-                                }
+                            let mut conn = init_db();
+                            if let Err(e) = increment_aborts(&mut conn, &state.template_id) {
+                                eprintln!("[DB] Failed to increment aborts: {}", e);
+                            } else {
+                                let _ = self.app_handle.emit("abort-incremented", ());
                             }
                         }
 

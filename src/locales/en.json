@@ -6,6 +6,8 @@
   "overlay":"Overlay",
   "settings":"Settings",
   "update":"Update available",
+  "changelog_header":"Change log",
+  "close":"Close",
   
   "no_races":"Here you will see the runs records",
   "loading":"Loading...",
@@ -103,13 +105,15 @@
   "failures":"fails",
   "sum_of_the_last":"SoLR",
   
-  "language":"Language:",
+  "language":"Language",
   "language_system":"As in Windows",
-  "different_players_separately":"Keep data for different players separately",
-  "path_log":"Path to the EE.log:",
+  "custom_locales_dir":"Folder for user localizations",
+  "custom_locales_dir_not_set":"No folder selected",
+  "export_locale_template":"Sample file",
+  "path_log":"Path to the EE.log",
   "browse":"Select a folder",
 
-  "theme":"Theme:",
+  "theme":"Theme",
   "theme_default":"As in Windows",
   "theme_dark":"Dark",
   "theme_light":"Light"

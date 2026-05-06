@@ -1,0 +1,24 @@
+## v2.1.0
+- Added a notification with a change log
+- Added the option to add custom interface translations
+- Failed runs are now always recorded
+- Default templates have been added:
+    - Koro (Kuva Fortress) Assault;
+    - Mercury (Planet)
+    - Venus (Planet)
+    - Earth (Planet)
+    - Lua (Planet)
+    - Mars (Planet)
+    - Deimos (Planet)
+    - Phobos (Planet)
+    - Ceres (Planet)
+    - Jupiter (Planet)
+    - Europa (Planet)
+    - Saturn (Planet)
+    - Uranus (Planet)
+    - Neptune (Planet)
+    - Pluto (Planet)
+    - Eris (Planet)
+    - Sedna (Planet)
+    - Void (Planet)
+    - Kuva Fortress (Planet)
