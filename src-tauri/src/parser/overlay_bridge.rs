@@ -1,4 +1,4 @@
-use super::events::{LogEvent, SplitInfo};
+use super::events::{GroupInfo, LogEvent, SplitInfo};
 use crossbeam_channel::Receiver;
 use std::collections::HashMap;
 use tauri::Emitter;
@@ -14,6 +14,7 @@ pub struct OverlaySplit {
     pub name: String,
     pub group_id: String,
     pub order: u32,
+    pub group_index: i64,
     pub is_completed: bool,
     pub split_time: Option<f64>,
 }
@@ -27,6 +28,7 @@ pub struct OverlayState {
     pub current_timer: Option<f64>,
     pub is_running: bool,
     pub is_trigger_only: bool,
+    pub pending_groups: Vec<GroupInfo>,
 }
 
 pub struct OverlayBridge {
@@ -47,6 +49,8 @@ struct OverlayBridgeState {
     is_running: bool,
     is_trigger_only: bool,
     template_id: String,
+    all_groups: Vec<GroupInfo>,
+    group_order_map: HashMap<String, i64>,
 }
 
 impl OverlayBridge {
@@ -72,6 +76,8 @@ impl OverlayBridge {
                 is_running: false,
                 is_trigger_only: false,
                 template_id: String::new(),
+                all_groups: Vec::new(),
+                group_order_map: HashMap::new(),
             };
 
             while let Ok(event) = self.receiver.recv() {
@@ -84,6 +90,7 @@ impl OverlayBridge {
                         group_id,
                         group_splits,
                         run_start_time,
+                        all_groups,
                     } => {
                         state.template_id = template_id;
                         state.template_name = template_name;
@@ -91,12 +98,16 @@ impl OverlayBridge {
                         state.exclude_time_between_groups = exclude_time_between_groups;
                         state.splits.clear();
                         state.added_groups.clear();
+                        state.group_order_map.clear();
+                        state.group_order_map.insert(group_id.clone(), 0);
                         state.run_start_time = run_start_time;
                         state.current_timer = Some(0.0);
                         state.excluded_time = 0.0;
                         state.last_group_end_time = None;
                         state.is_trigger_only = run_start_time.is_some();
                         state.is_running = true;
+                        state.all_groups = all_groups;
+                        state.added_groups.insert(group_id.clone(), false);
 
                         if run_start_time.is_some() {
                             let _ = self.app_handle.emit("first-split-received", ());
@@ -111,13 +122,14 @@ impl OverlayBridge {
                                     name: s.name,
                                     group_id: "".to_string(),
                                     order: idx as u32,
+                                    group_index: 0,
                                     is_completed: false,
                                     split_time: None,
                                 })
                                 .collect();
                             state.splits = new_splits;
                         } else {
-                            Self::add_group_splits(&mut state, group_id, group_splits);
+                            Self::add_group_splits(&mut state, group_id, group_splits, 0);
                         }
 
                         Self::emit_state(&self.app_handle, &state);
@@ -203,7 +215,9 @@ impl OverlayBridge {
 
                     LogEvent::GroupAdded { group_id, group_splits } => {
                         if !state.added_groups.contains_key(&group_id) {
-                            Self::add_group_splits(&mut state, group_id, group_splits);
+                            let group_index = state.group_order_map.len() as i64;
+                            state.group_order_map.insert(group_id.clone(), group_index);
+                            Self::add_group_splits(&mut state, group_id, group_splits, group_index);
                             Self::emit_state(&self.app_handle, &state);
                         }
                     }
@@ -218,6 +232,7 @@ impl OverlayBridge {
                                     split_index: s.order as i64,
                                     split_name: s.name.clone(),
                                     split_time: s.split_time.unwrap_or(0.0),
+                                    group_index: s.group_index,
                                 })
                                 .collect();
 
@@ -278,6 +293,7 @@ impl OverlayBridge {
                                 split_index: s.order as i64,
                                 split_name: s.name.clone(),
                                 split_time: s.split_time.unwrap_or(0.0),
+                                group_index: s.group_index,
                             })
                             .collect();
 
@@ -324,6 +340,7 @@ impl OverlayBridge {
         state: &mut OverlayBridgeState,
         group_id: String,
         splits: Vec<SplitInfo>,
+        group_index: i64,
     ) {
         let mut new_splits: Vec<OverlaySplit> = splits
             .into_iter()
@@ -332,6 +349,7 @@ impl OverlayBridge {
                 name: s.name,
                 group_id: group_id.clone(),
                 order: s.order,
+                group_index,
                 is_completed: false,
                 split_time: None,
             })
@@ -352,6 +370,12 @@ impl OverlayBridge {
     }
 
     fn emit_state(app_handle: &tauri::AppHandle, state: &OverlayBridgeState) {
+        let pending_groups: Vec<GroupInfo> = state.all_groups
+            .iter()
+            .filter(|g| !state.added_groups.contains_key(&g.group_id))
+            .cloned()
+            .collect();
+
         let overlay_state = OverlayState {
             template_name: state.template_name.clone(),
             template_id: state.template_id.clone(),
@@ -360,6 +384,7 @@ impl OverlayBridge {
             current_timer: state.current_timer,
             is_running: state.is_running,
             is_trigger_only: state.is_trigger_only,
+            pending_groups,
         };
 
         let _ = app_handle.emit("overlay-update", overlay_state);

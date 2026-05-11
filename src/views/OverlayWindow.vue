@@ -499,6 +499,11 @@ const paginatedSplits = computed(() => {
 const showSplits = computed(() =>
   (settings.overlay?.show_splits ?? true) && overlayState.value.template_name !== ""
 )
+const showGroupList = computed(() =>
+  (settings.overlay?.group_list ?? true) &&
+  overlayState.value.is_running &&
+  overlayState.value.pending_groups.length > 0
+)
 const showRunAborted = computed(() =>
   (settings.overlay?.run_aborted ?? true) && overlayState.value.template_name !== ""
 )
@@ -730,10 +735,20 @@ const updateSize = async () => {
         </div>
       </div>
 
+      
       <div class="sum-best" v-if="showSumOfBest && sumOfBest !== null">
         {{ $t('sum_of_best') }}: {{ formatTime(sumOfBest) }}
       </div>
       <div class="timer" v-if="showTimer">{{ displayTimer }}</div>
+      <div class="pending-groups" v-if="showGroupList">
+        <div
+          v-for="group in overlayState.pending_groups"
+          :key="group.group_id"
+          class="pending-group-row"
+        >
+          <span class="pending-group-name">{{ group.first_split_name }}</span>
+        </div>
+      </div>
       <div class="failures" v-if="showRunAborted">{{ $t('failures') }}: {{ abortCount }}</div>
       <div class="sum-last" v-if="showSumLast">
         <div class="sum-last-label">{{ $t('sum_of_the_last') }}:</div>
@@ -897,6 +912,24 @@ const updateSize = async () => {
   font-size: 15px; 
   font-weight: bold;
   margin-top: 2px;
+}
+
+.pending-groups {
+  width: 100%;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0);
+  color: rgb(0, 204, 255);
+}
+
+.pending-group-row {
+  display: flex;
+  padding: 0px 5px;
+}
+
+.pending-group-name {
+  text-align: left;
+  flex: 1 1 auto;
+  white-space: wrap;
+  font-size: 15px;
 }
 
 .drag-overlay {

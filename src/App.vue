@@ -16,6 +16,7 @@ import imgSettings from './imgs/settings.png'
 import imgUpdate from './imgs/update.png'
 
 const showChangelog = ref(false)
+const currentAppVersion = ref('')
 const changelogText = ref('')
 const hasUpdate = ref(false)
 const downloadUrl = ref('')
@@ -106,6 +107,7 @@ let unlisten: UnlistenFn | null = null
 onMounted(async () => {
 
   const currentVersion = await getVersion()
+  currentAppVersion.value = currentVersion
   const lastSeen = settings.last_seen_version
 
   if (lastSeen !== currentVersion) {
@@ -188,7 +190,7 @@ onBeforeUnmount(() => {
     <div class="content">
       <div v-if="showChangelog" class="changelog-overlay">
         <div class="changelog-box">
-          <label class="changelog-header">{{ $t('changelog_header') }}</label>
+          <label class="changelog-header">v{{ currentAppVersion }} {{ $t('changelog_header') }}</label>
           <pre class="changelog-text">{{ changelogText }}</pre>
           <button class="changelog-close" @click="closeChangelog">
             {{ $t('close') }}

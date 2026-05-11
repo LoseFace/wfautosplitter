@@ -26,6 +26,7 @@ export interface AppSettings {
     time_accuracy?: "seconds" | "tenths" | "hundredths" | "milliseconds"
     time_gold?: "segments" | "splits"
     split_separators: boolean
+    group_list: boolean
     sum_of_best: boolean
     fake_timer: boolean
     run_aborted: boolean

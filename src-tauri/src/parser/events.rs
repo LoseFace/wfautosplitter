@@ -8,6 +8,12 @@ pub struct SplitInfo {
     pub step_type: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct GroupInfo {
+    pub group_id: String,
+    pub first_split_name: String,
+}
+
 #[derive(Debug, Clone)]
 pub enum LogEvent {
     RunStarted {
@@ -18,6 +24,7 @@ pub enum LogEvent {
         group_id: String,
         group_splits: Vec<SplitInfo>,
         run_start_time: Option<f64>,
+        all_groups: Vec<GroupInfo>,
     },
     SplitCompleted {
         group_id: String,

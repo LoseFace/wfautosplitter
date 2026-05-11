@@ -10,6 +10,11 @@ export interface OverlaySplit {
     split_time: number | null;
 }
 
+export interface PendingGroup {
+    group_id: string;
+    first_split_name: string;
+}
+
 export interface OverlayState {
     template_name: string;
     template_id: string;
@@ -18,6 +23,7 @@ export interface OverlayState {
     current_timer: number | null;
     is_running: boolean;
     is_trigger_only: boolean;
+    pending_groups: PendingGroup[];
 }
 
 
@@ -31,6 +37,7 @@ export const overlayState = ref<OverlayState>({
     current_timer: null,
     is_running: false,
     is_trigger_only: false,
+    pending_groups: [],
 });
 
 export const firstSplitReceived = ref(false)

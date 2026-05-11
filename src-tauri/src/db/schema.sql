@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS splits (
     split_index INTEGER NOT NULL,
     split_name TEXT NOT NULL,
     split_time REAL NOT NULL,
+    group_index INTEGER NOT NULL DEFAULT 0,
 
     FOREIGN KEY(run_id) REFERENCES runs(id)
 );

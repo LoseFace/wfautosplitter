@@ -145,10 +145,10 @@ onMounted(async () => {
           v-model="settings.overlay.time_gold"
         >
           <option value="segments">
-            {{ $t('segments') }}
+            {{ $t('gold_segments') }}
           </option>
           <option value="splits">
-            {{ $t('splits') }}
+            {{ $t('gold_splits') }}
           </option>
         </select>
       </div>
@@ -159,6 +159,17 @@ onMounted(async () => {
           <input
             type="checkbox"
             v-model="settings.overlay.split_separators"
+          />
+          <span class="checkmark"></span>
+        </label>
+      </div>
+
+      <div class="show-groups">
+        <label class="custom-checkbox">
+          {{ $t('show_groups') }}
+          <input
+            type="checkbox"
+            v-model="settings.overlay.group_list"
           />
           <span class="checkmark"></span>
         </label>

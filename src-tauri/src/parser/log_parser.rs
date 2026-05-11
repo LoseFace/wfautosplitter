@@ -2,7 +2,7 @@ use super::loader::load_templates;
 use super::models::StepType;
 use super::runtime::RuntimeTemplate;
 use tauri::AppHandle;
-use super::events::{LogEvent, SplitInfo};
+use super::events::{GroupInfo, LogEvent, SplitInfo};
 use crossbeam_channel::Sender;
 use uuid::Uuid;
 use std::collections::HashSet;
@@ -276,6 +276,15 @@ impl LogParser {
                         None
                     };
 
+                    let all_groups: Vec<GroupInfo> = runtime.template.groups.iter()
+                        .map(|g| GroupInfo {
+                            group_id: g.id.clone(),
+                            first_split_name: g.steps.first()
+                                .map(|s| s.split_name.clone())
+                                .unwrap_or_default(),
+                        })
+                        .collect();
+
                     let _ = sender.send(LogEvent::RunStarted {
                         template_id: runtime.template.id.clone(),
                         template_name: name.clone(),
@@ -284,6 +293,7 @@ impl LogParser {
                         group_id: group.id.clone(),
                         group_splits,
                         run_start_time,
+                        all_groups,
                     });
                 }
                 return;

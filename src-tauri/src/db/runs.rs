@@ -6,6 +6,7 @@ pub struct Split {
     pub split_index: i64,
     pub split_name: String,
     pub split_time: f64,
+    pub group_index: i64,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -39,7 +40,7 @@ pub struct RunChartPoint {
 
 fn load_splits(conn: &Connection, run_id: i64) -> rusqlite::Result<Vec<Split>> {
     let mut stmt = conn.prepare(
-        "SELECT split_index, split_name, split_time
+        "SELECT split_index, split_name, split_time, COALESCE(group_index, 0)
          FROM splits
          WHERE run_id = ?1
          ORDER BY split_index",
@@ -49,6 +50,7 @@ fn load_splits(conn: &Connection, run_id: i64) -> rusqlite::Result<Vec<Split>> {
             split_index: row.get(0)?,
             split_name: row.get(1)?,
             split_time: row.get(2)?,
+            group_index: row.get(3)?,
         })
     })?.collect();
     result
@@ -73,9 +75,9 @@ pub fn insert_run(conn: &mut Connection, run: Run) -> rusqlite::Result<i64> {
 
     for split in &run.splits {
         tx.execute(
-            "INSERT INTO splits (run_id, split_index, split_name, split_time)
+            "INSERT INTO splits (run_id, split_index, split_name, split_time, group_index)
              VALUES (?1, ?2, ?3, ?4)",
-            params![run_id, split.split_index, &split.split_name, split.split_time],
+            params![run_id, split.split_index, &split.split_name, split.split_time, split.group_index],
         )?;
     }
 
@@ -305,46 +307,49 @@ pub fn get_best_splits(conn: &mut Connection, template_id: &str) -> rusqlite::Re
             split_index: row.get(0)?,
             split_name: row.get(1)?,
             split_time: row.get(2)?,
+            group_index: row.get(3)?,
         })
     })?.collect();
     result
 }
 
 pub fn get_best_segments(conn: &mut Connection, template_id: &str) -> rusqlite::Result<Vec<Split>> {
-    let rows: Vec<(i64, i64, String, f64)> = {
+    let rows: Vec<(i64, i64, String, f64, i64)> = {
         let mut stmt = conn.prepare(
-            "SELECT s.run_id, s.split_index, s.split_name, s.split_time
+            "SELECT s.run_id, s.split_index, s.split_name, s.split_time, COALESCE(s.group_index, 0)
                 FROM splits s
                 JOIN runs r ON s.run_id = r.id
                 WHERE r.template_id = ?1
                 ORDER BY s.run_id, s.split_index",
         )?;
-        let result: rusqlite::Result<Vec<(i64, i64, String, f64)>> = stmt.query_map(params![template_id], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, f64>(3)?,
-            ))
-        })?.collect();
+        let result: rusqlite::Result<Vec<(i64, i64, String, f64, i64)>> =
+            stmt.query_map(params![template_id], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, f64>(3)?,
+                    row.get::<_, i64>(4)?,
+                ))
+            })?.collect();
         result?
     };
 
-    let mut runs_map: std::collections::HashMap<i64, Vec<(i64, String, f64)>> =
+    let mut runs_map: std::collections::HashMap<i64, Vec<(i64, String, f64, i64)>> =
         std::collections::HashMap::new();
 
-    for (run_id, split_index, split_name, split_time) in rows {
-        runs_map.entry(run_id).or_default().push((split_index, split_name, split_time));
+    for (run_id, split_index, split_name, split_time, group_index) in rows {
+        runs_map.entry(run_id).or_default().push((split_index, split_name, split_time, group_index));
     }
 
-    let mut best_segments: std::collections::HashMap<i64, (String, f64)> =
+    let mut best_segments: std::collections::HashMap<i64, (String, f64, i64)> =
         std::collections::HashMap::new();
 
     for splits in runs_map.values() {
         let mut sorted = splits.clone();
-        sorted.sort_by_key(|(idx, _, _)| *idx);
+        sorted.sort_by_key(|(idx, _, _, _)| *idx);
 
-        for (i, (split_index, split_name, split_time)) in sorted.iter().enumerate() {
+        for (i, (split_index, split_name, split_time, group_index)) in sorted.iter().enumerate() {
             let segment = if i == 0 {
                 *split_time
             } else {
@@ -353,20 +358,21 @@ pub fn get_best_segments(conn: &mut Connection, template_id: &str) -> rusqlite::
 
             let entry = best_segments
                 .entry(*split_index)
-                .or_insert((split_name.clone(), f64::MAX));
+                .or_insert((split_name.clone(), f64::MAX, *group_index));
 
             if segment < entry.1 {
-                *entry = (split_name.clone(), segment);
+                *entry = (split_name.clone(), segment, *group_index);
             }
         }
     }
 
     let mut result: Vec<Split> = best_segments
         .into_iter()
-        .map(|(split_index, (split_name, split_time))| Split {
+        .map(|(split_index, (split_name, split_time, group_index))| Split {
             split_index,
             split_name,
             split_time,
+            group_index,
         })
         .collect();
 

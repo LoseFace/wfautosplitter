@@ -44,6 +44,18 @@ interface Split {
   split_index: number
   split_name: string
   split_time: number
+  group_index: number
+}
+
+interface SplitColumn {
+  index: number
+  name: string
+  group_index: number
+}
+
+interface GroupBlock {
+  group_index: number
+  cols: SplitColumn[]
 }
 
 interface Run {
@@ -74,40 +86,266 @@ const loading = ref(false)
 const pendingDeleteId = ref<number | null>(null)
 
 type SortDir = 'asc' | 'desc'
-const lastSplitIndex = computed(() => {
-  const cols = splitColumns.value
-  return cols.length > 0 ? cols[cols.length - 1].index : null
-})
-const sortCol = ref<string>('date')
-const sortDir = ref<SortDir>('desc')
-const showSegments = ref(localStorage.getItem('race_show_segments') === 'true')
 
+const showSplits = ref(localStorage.getItem('race_show_splits') !== 'false')
+const showSegments = ref(localStorage.getItem('race_show_segments') === 'true')
+const showGroupTotals = ref(localStorage.getItem('race_show_group_totals') !== 'false')
+
+
+watch(showSplits, (val) => {
+  localStorage.setItem('race_show_splits', String(val))
+})
 watch(showSegments, (val) => {
   localStorage.setItem('race_show_segments', String(val))
 })
+watch(showGroupTotals, (val) => {
+  localStorage.setItem('race_show_group_totals', String(val))
+})
 
-function toggleSort(col: string) {
-  if (sortCol.value === col) {
-    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+function onShowSplitsChange() {
+  if (!showSplits.value && !showSegments.value && !showGroupTotals.value) showGroupTotals.value = true
+}
+function onShowSegmentsChange() {
+  if (!showSplits.value && !showSegments.value && !showGroupTotals.value) showSplits.value = true
+}
+function onShowGroupTotalsChange() {
+  if (!showSplits.value && !showSegments.value && !showGroupTotals.value) showSplits.value = true
+}
+
+function getSequenceKey(run: Run): string {
+  return run.splits
+    .slice()
+    .sort((a, b) => a.split_index - b.split_index)
+    .map(s => s.split_name)
+    .join('|')
+}
+
+function isPrefix(shorter: string, longer: string): boolean {
+  if (shorter === longer) return true
+  return longer.startsWith(shorter + '|')
+}
+
+const groupedRuns = computed(() => {
+  const keyedRuns = runs.value.map(r => ({ run: r, key: getSequenceKey(r) }))
+  const allKeys = [...new Set(keyedRuns.map(kr => kr.key))]
+
+  function canonicalKey(key: string): string {
+    let best = key
+    for (const other of allKeys) {
+      if (isPrefix(key, other) && other.length > best.length) {
+        best = other
+      }
+    }
+    return best
+  }
+
+  const map = new Map<string, Run[]>()
+  for (const { run, key } of keyedRuns) {
+    const canon = canonicalKey(key)
+    if (!map.has(canon)) map.set(canon, [])
+    map.get(canon)!.push(run)
+  }
+
+  return [...map.entries()]
+    .map(([key, runs]) => ({ key, runs }))
+    .sort((a, b) => {
+      const aMax = Math.max(...a.runs.map(r => r.created_at))
+      const bMax = Math.max(...b.runs.map(r => r.created_at))
+      return bMax - aMax
+    })
+})
+
+const tableSortStates = ref<Record<string, { col: string; dir: SortDir }>>({})
+
+function getTableSort(key: string) {
+  if (!tableSortStates.value[key]) {
+    tableSortStates.value[key] = { col: 'date', dir: 'desc' }
+  }
+  return tableSortStates.value[key]
+}
+
+function toggleTableSort(key: string, col: string) {
+  const state = getTableSort(key)
+  if (state.col === col) {
+    state.dir = state.dir === 'asc' ? 'desc' : 'asc'
   } else {
-    sortCol.value = col
-    sortDir.value = 'asc'
+    state.col = col
+    state.dir = 'asc'
   }
 }
 
-function sortIcon(col: string): string {
-  const resolvedActive = sortCol.value === '__last__'
-    ? (lastSplitIndex.value !== null ? 'split:' + lastSplitIndex.value : 'date')
-    : sortCol.value
-  if (resolvedActive !== col) return '⇅'
-  return sortDir.value === 'asc' ? '⇩' : '⇧'
+function getActiveSortCol(key: string, tableRuns: Run[]): string {
+  const state = getTableSort(key)
+  if (state.col !== '__last__') return state.col
+  const cols = getSplitColumns(tableRuns)
+  return cols.length > 0 ? 'split:' + cols[cols.length - 1].index : 'date'
 }
 
-const activeSortCol = computed(() =>
-  sortCol.value === '__last__'
-    ? (lastSplitIndex.value !== null ? 'split:' + lastSplitIndex.value : 'date')
-    : sortCol.value
-)
+function tableSortIcon(key: string, col: string, tableRuns: Run[]): string {
+  const active = getActiveSortCol(key, tableRuns)
+  if (active !== col) return '⇅'
+  return getTableSort(key).dir === 'asc' ? '⇩' : '⇧'
+}
+
+function getSplitColumns(tableRuns: Run[]) {
+  const map = new Map<number, string>()
+  for (const run of tableRuns) {
+    for (const split of run.splits) {
+      if (!map.has(split.split_index)) {
+        map.set(split.split_index, split.split_name)
+      }
+    }
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([index, name]) => ({ index, name }))
+}
+
+function getGroupedSplitColumns(tableRuns: Run[]): GroupBlock[] {
+  const map = new Map<number, SplitColumn>()
+  for (const run of tableRuns) {
+    for (const split of run.splits) {
+      if (!map.has(split.split_index)) {
+        map.set(split.split_index, {
+          index: split.split_index,
+          name: split.split_name,
+          group_index: split.group_index,
+        })
+      }
+    }
+  }
+  const allCols = [...map.values()].sort((a, b) => a.index - b.index)
+
+  const groupMap = new Map<number, SplitColumn[]>()
+  for (const col of allCols) {
+    if (!groupMap.has(col.group_index)) groupMap.set(col.group_index, [])
+    groupMap.get(col.group_index)!.push(col)
+  }
+
+  return [...groupMap.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([group_index, cols]) => ({ group_index, cols }))
+}
+
+function getGroupTime(run: Run, group_index: number): number | null {
+  const groupSplits = run.splits
+    .filter(s => s.group_index === group_index)
+    .sort((a, b) => a.split_index - b.split_index)
+  if (groupSplits.length === 0) return null
+  const last = groupSplits[groupSplits.length - 1]
+  const first = groupSplits[0]
+  const allSortedSplits = [...run.splits].sort((a, b) => a.split_index - b.split_index)
+  const firstIdx = allSortedSplits.findIndex(s => s.split_index === first.split_index)
+  const prevSplit = firstIdx > 0 ? allSortedSplits[firstIdx - 1] : null
+  if (!prevSplit) return last.split_time
+  return last.split_time - prevSplit.split_time
+}
+
+function getTotalColumns(tableRuns: Run[]): number {
+  const cols = getSplitColumns(tableRuns)
+  const visibleSplits = cols.filter((_, i) => i > 0).length
+  const segmentCols = showSegments.value && showSplits.value ? Math.max(0, visibleSplits - 1) : 0
+  const splitCols = showSplits.value ? visibleSplits : 0
+  const groupBlocks = showGroupTotals.value ? getGroupedSplitColumns(tableRuns).length : 0
+  return 1 + splitCols + segmentCols + groupBlocks + 1
+}
+
+function getBestSplitTimes(tableRuns: Run[]): Map<number, number> {
+  const map = new Map<number, number>()
+  for (const run of tableRuns) {
+    for (const split of run.splits) {
+      const cur = map.get(split.split_index)
+      if (cur === undefined || split.split_time < cur) {
+        map.set(split.split_index, split.split_time)
+      }
+    }
+  }
+  return map
+}
+
+function getBestSegmentTimes(tableRuns: Run[]): Map<string, number> {
+  const map = new Map<string, number>()
+  const cols = getSplitColumns(tableRuns).filter(c => c.index > 0)
+  for (let i = 1; i < cols.length; i++) {
+    const fromIdx = cols[i - 1].index
+    const toIdx = cols[i].index
+    const key = `${fromIdx}:${toIdx}`
+    for (const run of tableRuns) {
+      const seg = getSegmentTime(run, fromIdx, toIdx)
+      if (seg === null) continue
+      const cur = map.get(key)
+      if (cur === undefined || seg < cur) map.set(key, seg)
+    }
+  }
+  return map
+}
+
+function getFilteredRuns(key: string, tableRuns: Run[]): Run[] {
+  const state = getTableSort(key)
+  const cols = getSplitColumns(tableRuns)
+  const lastIdx = cols.length > 0 ? cols[cols.length - 1].index : null
+  const resolvedCol = state.col === '__last__'
+    ? (lastIdx !== null ? 'split:' + lastIdx : 'date')
+    : state.col
+  const dir = state.dir
+
+  let list = [...tableRuns]
+  if (resolvedCol === 'date') {
+    list.sort((a, b) => dir === 'desc' ? b.created_at - a.created_at : a.created_at - b.created_at)
+  } else if (resolvedCol.startsWith('split:')) {
+    const splitIdx = parseInt(resolvedCol.slice(6))
+    list.sort((a, b) => {
+      const sa = a.splits.find(s => s.split_index === splitIdx)
+      const sb = b.splits.find(s => s.split_index === splitIdx)
+      if (!sa && !sb) return 0
+      if (!sa) return 1
+      if (!sb) return -1
+      return dir === 'asc' ? sa.split_time - sb.split_time : sb.split_time - sa.split_time
+    })
+  } else if (resolvedCol.startsWith('seg:')) {
+    const parts = resolvedCol.split(':')
+    const fromIdx = parseInt(parts[1])
+    const toIdx = parseInt(parts[2])
+    list.sort((a, b) => {
+      const segA = getSegmentTime(a, fromIdx, toIdx)
+      const segB = getSegmentTime(b, fromIdx, toIdx)
+      if (segA === null && segB === null) return 0
+      if (segA === null) return 1
+      if (segB === null) return -1
+      return dir === 'asc' ? segA - segB : segB - segA
+    })
+  }
+  return list
+}
+
+function isFailCellTable(run: Run, colIndex: number, tableRuns: Run[]): boolean {
+  if (run.success) return false
+  const visibleCols = getSplitColumns(tableRuns).filter(c => c.index > 0)
+  const lastReached = [...visibleCols].reverse().find(c => run.splits.some(s => s.split_index === c.index))
+  if (!lastReached) return colIndex === visibleCols[0]?.index
+  const lastIdx = visibleCols.findIndex(c => c.index === lastReached.index)
+  const nextCol = visibleCols[lastIdx + 1]
+  return nextCol?.index === colIndex
+}
+
+function getSumOfBest(tableRuns: Run[]): number | null {
+  if (tableRuns.length === 0) return null
+  const bestSegments = new Map<number, number>()
+  for (const run of tableRuns) {
+    const sorted = [...run.splits].sort((a, b) => a.split_index - b.split_index)
+    for (let i = 0; i < sorted.length; i++) {
+      const segment = i === 0
+        ? sorted[i].split_time
+        : sorted[i].split_time - sorted[i - 1].split_time
+      const cur = bestSegments.get(sorted[i].split_index)
+      if (cur === undefined || segment < cur) bestSegments.set(sorted[i].split_index, segment)
+    }
+  }
+  if (bestSegments.size === 0) return null
+  let total = 0
+  for (const v of bestSegments.values()) total += v
+  return total
+}
 
 const localAbortCount = ref(props.summary.abort_count)
 
@@ -132,40 +370,16 @@ onMounted(async () => {
     emit('deleted')
 
     try {
-    const summaries = await invoke<Array<{
-      template_id: string
-      abort_count: number
-    }>>('get_template_summaries', {})
-    const match = summaries.find(
-      s => s.template_id === props.summary.template_id
-    )
-    if (match) localAbortCount.value = match.abort_count
-  } catch {}
+      const summaries = await invoke<Array<{
+        template_id: string
+        abort_count: number
+      }>>('get_template_summaries', {})
+      const match = summaries.find(
+        s => s.template_id === props.summary.template_id
+      )
+      if (match) localAbortCount.value = match.abort_count
+    } catch {}
   })
-})
-
-const sumOfBest = computed((): number | null => {
-  if (runs.value.length === 0) return null
-
-  const bestSegments = new Map<number, number>()
-
-  for (const run of runs.value) {
-    const sorted = [...run.splits].sort((a, b) => a.split_index - b.split_index)
-    for (let i = 0; i < sorted.length; i++) {
-      const segment = i === 0
-        ? sorted[i].split_time
-        : sorted[i].split_time - sorted[i - 1].split_time
-      const current = bestSegments.get(sorted[i].split_index)
-      if (current === undefined || segment < current) {
-        bestSegments.set(sorted[i].split_index, segment)
-      }
-    }
-  }
-
-  if (bestSegments.size === 0) return null
-  let total = 0
-  for (const duration of bestSegments.values()) total += duration
-  return total
 })
 
 function askDelete(id: number) {
@@ -175,12 +389,6 @@ function askDelete(id: number) {
 function cancelDelete() {
   pendingDeleteId.value = null
 }
-
-const totalColumns = computed(() => {
-  const visibleSplits = splitColumns.value.filter((_, i) => i > 0).length
-  const segmentCols = showSegments.value ? Math.max(0, visibleSplits - 1) : 0
-  return 1 + visibleSplits + segmentCols + 1
-})
 
 async function confirmDelete(id: number) {
   try {
@@ -238,111 +446,6 @@ function formatDate(ts: number): string {
   return `${dd}.${mm}.${yy}`
 }
 
-const bestSplitTimes = computed(() => {
-  const map = new Map<number, number>()
-  for (const run of runs.value) {
-    for (const split of run.splits) {
-      const current = map.get(split.split_index)
-      if (current === undefined || split.split_time < current) {
-        map.set(split.split_index, split.split_time)
-      }
-    }
-  }
-  return map
-})
-
-const bestSegmentTimes = computed(() => {
-  const map = new Map<string, number>()
-  const cols = splitColumns.value.filter(c => c.index > 0)
-  for (let i = 1; i < cols.length; i++) {
-    const fromIdx = cols[i - 1].index
-    const toIdx = cols[i].index
-    const key = `${fromIdx}:${toIdx}`
-    for (const run of runs.value) {
-      const t = getSegmentTime(run, fromIdx, toIdx)
-      if (t === null) continue
-      const cur = map.get(key)
-      if (cur === undefined || t < cur) map.set(key, t)
-    }
-  }
-  return map
-})
-
-function isBestSplitTime(splitIndex: number, splitTime: number): boolean {
-  const best = bestSplitTimes.value.get(splitIndex)
-  return best !== undefined && splitTime === best
-}
-
-const filteredRuns = computed(() => {
-  let list = runs.value
-
-  const col = sortCol.value
-  const dir = sortDir.value
-
-  const resolvedCol = col === '__last__'
-    ? (lastSplitIndex.value !== null ? 'split:' + lastSplitIndex.value : 'date')
-    : col
-
-  if (resolvedCol === 'date') {
-    list = [...list].sort((a, b) =>
-      dir === 'desc' ? b.created_at - a.created_at : a.created_at - b.created_at
-    )
-  } else if (resolvedCol.startsWith('split:')) {
-    const splitIdx = parseInt(resolvedCol.slice(6))
-    list = [...list].sort((a, b) => {
-      const sa = a.splits.find(s => s.split_index === splitIdx)
-      const sb = b.splits.find(s => s.split_index === splitIdx)
-      if (!sa && !sb) return 0
-      if (!sa) return 1
-      if (!sb) return -1
-      const diff = sa.split_time - sb.split_time
-      return dir === 'asc' ? diff : -diff
-    })
-  } else if (resolvedCol.startsWith('seg:')) {
-    const parts = resolvedCol.split(':')
-    const fromIdx = parseInt(parts[1])
-    const toIdx = parseInt(parts[2])
-    list = [...list].sort((a, b) => {
-      const segA = getSegmentTime(a, fromIdx, toIdx)
-      const segB = getSegmentTime(b, fromIdx, toIdx)
-      if (segA === null && segB === null) return 0
-      if (segA === null) return 1
-      if (segB === null) return -1
-      return dir === 'asc' ? segA - segB : segB - segA
-    })
-  }
-
-  return list
-})
-
-const splitColumns = computed(() => {
-  const map = new Map<number, string>()
-  for (const run of runs.value) {
-    for (const split of run.splits) {
-      if (!map.has(split.split_index)) {
-        map.set(split.split_index, split.split_name)
-      }
-    }
-  }
-  return [...map.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([index, name]) => ({ index, name }))
-})
-
-function isFailCell(run: Run, colIndex: number): boolean {
-  if (run.success) return false
-  const visibleCols = splitColumns.value.filter(c => c.index > 0)
-  const lastReached = [...visibleCols]
-    .reverse()
-    .find(c => run.splits.some(s => s.split_index === c.index))
-  if (!lastReached) {
-    return colIndex === visibleCols[0]?.index
-  }
-  const lastIdx = visibleCols.findIndex(c => c.index === lastReached.index)
-  const nextCol = visibleCols[lastIdx + 1]
-  return nextCol?.index === colIndex
-}
-
 function getSegmentTime(run: Run, fromIndex: number, toIndex: number): number | null {
   const fromSplit = run.splits.find(s => s.split_index === fromIndex)
   const toSplit = run.splits.find(s => s.split_index === toIndex)
@@ -380,19 +483,20 @@ function onChartWheel(e: WheelEvent) {
 }
 
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
-  let chartInstance: Chart | null = null
-  
-  let unlistenRunSaved: UnlistenFn | null = null
-  
-  function getCssVar(name: string): string {
-    return getComputedStyle(document.documentElement)
+let chartInstance: Chart | null = null
+
+let unlistenRunSaved: UnlistenFn | null = null
+
+function getCssVar(name: string): string {
+  return getComputedStyle(document.documentElement)
     .getPropertyValue(name)
     .trim()
-  }
-  const text   = getCssVar('--text-color')
-  
+}
+const text = getCssVar('--text-color')
+
 const chartHeight = ref(247)
 const yTicksLimit = computed(() => Math.max(2, Math.floor(chartHeight.value / 20)))
+
 function onResizerMouseDown(e: MouseEvent) {
   e.preventDefault()
   const startY = e.clientY
@@ -440,7 +544,13 @@ function buildChart() {
       .filter(r => r.success)
       .map(r => r.total_time)
   )
-  const maxSplitIndex = Math.max(...Array.from(splitIndexes))
+  const maxSplitIndex = Math.max(
+    ...visibleChartRuns.value
+      .filter(r => r.success)
+      .flatMap(r => r.splits)
+      .map(s => s.split_index),
+    -Infinity
+  )
 
   const lastSplitName = visibleChartRuns.value
     .filter(r => r.success)
@@ -483,6 +593,7 @@ function buildChart() {
 
     datasets.push({
       label: splitName,
+      splitIndex: splitIndex,
       data: splitData,
       borderColor: 'rgba(125,125,125,0.5)',
       backgroundColor: 'transparent',
@@ -553,7 +664,10 @@ function buildChart() {
         if (!point) continue
         const dataset = chart.data.datasets[di]
         const splitName = dataset.label as string
-        const split = sorted.find(s => s.split_name === splitName || `Split ${s.split_index}` === splitName)
+        const datasetSplitIndex = (dataset as any).splitIndex as number | undefined
+        const split = datasetSplitIndex !== undefined
+          ? sorted.find(s => s.split_index === datasetSplitIndex)
+          : sorted.find(s => s.split_name === splitName || `Split ${s.split_index}` === splitName)
         if (!split) continue
         splitPoints.push({
           splitIndex: split.split_index,
@@ -613,7 +727,7 @@ function buildChart() {
       const lines = label.split('\n')
       const padding = 6
       const lineHeight = 16
-      
+
       ctx.save()
       ctx.font = '12px sans-serif'
       const maxW = Math.max(...lines.map((l: string) => ctx.measureText(l).width))
@@ -697,7 +811,6 @@ watch(visibleChartRuns, async () => {
   buildChart()
 }, { deep: true })
 
-
 watch(yTicksLimit, () => {
   buildChart()
 })
@@ -713,10 +826,10 @@ onUnmounted(() => {
 
 <template>
   <div class="race-statistic">
-    <div class="template-title" v-if="summary.template_name, runs.length >= 2" >
+    <div class="template-title" v-if="summary.template_name && runs.length >= 2">
       <span>{{ summary.template_name }}</span>
-      <span v-if="sumOfBest !== null">{{ $t('sum_of_best') }}: {{ formatRunTime(sumOfBest) }}</span>
-      <span>{{ $t('failures') }}: {{ localAbortCount  }}</span>
+      <span v-if="getSumOfBest(runs) !== null">{{ $t('sum_of_best') }}: {{ formatRunTime(getSumOfBest(runs)!) }}</span>
+      <span>{{ $t('failures') }}: {{ localAbortCount }}</span>
     </div>
 
     <div
@@ -727,7 +840,7 @@ onUnmounted(() => {
     >
       <canvas ref="chartCanvas"></canvas>
     </div>
-    
+
     <div class="chart-controls" v-if="chartRuns.length > CHART_MIN_VISIBLE">
       <div class="chart-control-row">
         <img :src="imgZoom" width="15px" height="15px">
@@ -760,115 +873,169 @@ onUnmounted(() => {
     </div>
 
     <div class="race-menu">
-      <button class="segments-toggle" @click="showSegments = !showSegments" :class="{ active: showSegments }">
-        {{ showSegments ? $t('hide_segments') : $t('show_segments') }}
-      </button>
+      <div class="segments-toggle">
+        <label class="custom-checkbox" :class="{ 'checkbox-disabled': showSplits && !showSegments && !showGroupTotals }">
+          {{ $t('splits') }}
+          <input
+            type="checkbox"
+            v-model="showSplits"
+            :disabled="showSplits && !showSegments && !showGroupTotals"
+            @change="onShowSplitsChange"
+          />
+          <span class="checkmark"></span>
+        </label>
+      </div>
+      <div class="segments-toggle">
+        <label class="custom-checkbox" :class="{ 'checkbox-disabled': showSegments && !showSplits && !showGroupTotals }">
+          {{ $t('show_segments') }}
+          <input
+            type="checkbox"
+            v-model="showSegments"
+            :disabled="showSegments && !showSplits && !showGroupTotals"
+            @change="onShowSegmentsChange"
+          />
+          <span class="checkmark"></span>
+        </label>
+      </div>
+      <div class="segments-toggle">
+        <label class="custom-checkbox" :class="{ 'checkbox-disabled': showGroupTotals && !showSplits && !showSegments }">
+          {{ $t('show_group_totals') }}
+          <input
+            type="checkbox"
+            v-model="showGroupTotals"
+            :disabled="showGroupTotals && !showSplits && !showSegments"
+            @change="onShowGroupTotalsChange"
+          />
+          <span class="checkmark"></span>
+        </label>
+      </div>
     </div>
 
     <div class="history-list">
       <div v-if="loading" class="status-msg">{{ $t('loading') }}</div>
-      <div v-else-if="filteredRuns.length === 0" class="status-msg">{{ $t('no_races') }}</div>
+      <div v-else-if="runs.length === 0" class="status-msg">{{ $t('no_races') }}</div>
 
-      <div v-else class="history-table-wrap">
-        <table class="history-table">
-          <thead>
-            <tr class="thead-splits">
-              <th
-                class="th-date sortable col-border-right"
-                :class="{ 'col-active': activeSortCol === 'date' }"
-                @click="toggleSort('date')"
-              >
-                {{ $t('date') }} <span class="sort-icon">{{ sortIcon('date') }}</span>
-              </th>
-              <template v-for="(col, idx) in splitColumns" :key="col.index">
-                <th
-                  v-if="showSegments && idx > 1"
-                  class="th-segment sortable col-border-right"
-                  :class="{ 'col-active': activeSortCol === 'seg:' + splitColumns[idx-1].index + ':' + col.index }"
-                  @click="toggleSort('seg:' + splitColumns[idx-1].index + ':' + col.index)"
-                >
-                  <span class="seg-label">{{ splitColumns[idx-1].name }} → {{ col.name }}</span>
-                  <span class="sort-icon">{{ sortIcon('seg:' + splitColumns[idx-1].index + ':' + col.index) }}</span>
-                </th>
-                <th
-                  v-if="idx > 0"
-                  class="th-split sortable col-border-right"
-                  :class="{ 'col-active': activeSortCol === 'split:' + col.index }"
-                  @click="toggleSort('split:' + col.index)"
-                >
-                  {{ col.name }} <span class="sort-icon">{{ sortIcon('split:' + col.index) }}</span>
-                </th>
-              </template>
-              <th class="th-del"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="run in filteredRuns" :key="run.id">
-              <tr v-if="pendingDeleteId === run.id" class="tr-confirm-delete">
-                <td class="td-date col-border-right">
-                  <div class="rtime">{{ formatTimeOfDay(run.created_at) }}</div>
-                  <div class="rdate">{{ formatDate(run.created_at) }}</div>
-                </td>
-                <td :colspan="totalColumns - 1" class="td-confirm-delete">
-                  <span class="confirm-delete-text">{{$t('delete_record')}}</span>
-                  <button class="confirm-deletion-record" @click="confirmDelete(run.id)">{{$t('delete')}}</button>
-                  <button class="cancel-deletion-record" @click="cancelDelete()">{{$t('cancel')}}</button>
-                </td>
-              </tr>
-              <tr v-else class="tr-splits" :class="{ 'tr-failed': !run.success }">
-                <td class="td-date col-border-right" :class="{ 'col-active-cell': activeSortCol === 'date' }">
-                  <div class="rtime">{{ formatTimeOfDay(run.created_at) }}</div>
-                  <div class="rdate">{{ formatDate(run.created_at) }}</div>
-                </td>
-                <template v-for="(col, idx) in splitColumns" :key="col.index">
-                  <td
-                    v-if="showSegments && idx > 1"
-                    class="td-segment col-border-right"
-                    :class="{
-                      'col-active-cell': activeSortCol === 'seg:' + splitColumns[idx-1].index + ':' + col.index,
-                      'best-split': (() => {
-                        const t = getSegmentTime(run, splitColumns[idx-1].index, col.index)
-                        const best = bestSegmentTimes.get(`${splitColumns[idx-1].index}:${col.index}`)
-                        return t !== null && best !== undefined && t === best
-                      })()
-                    }"
+      <template v-else>
+        <div
+          v-for="group in groupedRuns"
+          :key="group.key"
+          class="sequence-block"
+        >
+          <div class="history-table-wrap">
+            <table class="history-table">
+              <thead>
+                <tr class="thead-splits">
+                  <th
+                    class="th-date sortable col-border-right"
+                    :class="{ 'col-active': getActiveSortCol(group.key, group.runs) === 'date' }"
+                    @click="toggleTableSort(group.key, 'date')"
                   >
-                    <span v-if="getSegmentTime(run, splitColumns[idx-1].index, col.index) !== null">
-                      {{ formatRunTime(getSegmentTime(run, splitColumns[idx-1].index, col.index)!) }}
-                    </span>
-                    <span v-else class="no-split">—</span>
-                  </td>
-                  <td
-                    v-if="idx > 0"
-                    class="td-split col-border-right"
-                    :class="{
-                      'best-split': (() => { const s = run.splits.find(sp => sp.split_index === col.index); return s ? isBestSplitTime(col.index, s.split_time) : false })(),
-                      'col-active-cell': activeSortCol === 'split:' + col.index
-                    }"
-                  >
-                    <template v-if="run.splits.find(sp => sp.split_index === col.index)">
-                      {{ formatRunTime(run.splits.find(sp => sp.split_index === col.index)!.split_time) }}
+                    {{ $t('date') }} <span class="sort-icon">{{ tableSortIcon(group.key, 'date', group.runs) }}</span>
+                  </th>
+                  <template v-for="block in getGroupedSplitColumns(group.runs)" :key="'grp-' + block.group_index">
+                    <template v-for="(col, idx) in block.cols" :key="col.index">
+                      <th
+                        v-if="showSegments && !(block.group_index === 0 && idx === 0) && !(idx === 0)"
+                        class="th-segment sortable col-border-right"
+                        :class="{ 'col-active': getActiveSortCol(group.key, group.runs) === 'seg:' + block.cols[idx-1].index + ':' + col.index }"
+                        @click="toggleTableSort(group.key, 'seg:' + block.cols[idx-1].index + ':' + col.index)"
+                      >
+                        <span class="seg-label">{{ block.cols[idx-1].name }} → {{ col.name }}</span>
+                        <span class="sort-icon">{{ tableSortIcon(group.key, 'seg:' + block.cols[idx-1].index + ':' + col.index, group.runs) }}</span>
+                      </th>
+                      <th
+                        v-if="(block.group_index > 0 || idx > 0) && showSplits"
+                        class="th-split sortable col-border-right"
+                        :class="{ 'col-active': getActiveSortCol(group.key, group.runs) === 'split:' + col.index }"
+                        @click="toggleTableSort(group.key, 'split:' + col.index)"
+                      >
+                        {{ col.name }} <span class="sort-icon">{{ tableSortIcon(group.key, 'split:' + col.index, group.runs) }}</span>
+                      </th>
                     </template>
-                    <template v-else-if="isFailCell(run, col.index)">
-                      <span class="run-failed-cell">{{ $t('fail') }}</span>
+                    <th v-if="showGroupTotals" class="th-group-total col-border-right">
+                      {{ block.cols[0].name }}
+                    </th>
+                  </template>
+                  <th class="th-del"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="run in getFilteredRuns(group.key, group.runs)" :key="run.id">
+                  <tr v-if="pendingDeleteId === run.id" class="tr-confirm-delete">
+                    <td class="td-date col-border-right">
+                      <div class="rtime">{{ formatTimeOfDay(run.created_at) }}</div>
+                      <div class="rdate">{{ formatDate(run.created_at) }}</div>
+                    </td>
+                    <td :colspan="getTotalColumns(group.runs) - 1" class="td-confirm-delete">
+                      <span class="confirm-delete-text">{{ $t('delete_record') }}</span>
+                      <button class="confirm-deletion-record" @click="confirmDelete(run.id)">{{ $t('delete') }}</button>
+                      <button class="cancel-deletion-record" @click="cancelDelete()">{{ $t('cancel') }}</button>
+                    </td>
+                  </tr>
+                  <tr v-else class="tr-splits" :class="{ 'tr-failed': !run.success }">
+                    <td class="td-date col-border-right" :class="{ 'col-active-cell': getActiveSortCol(group.key, group.runs) === 'date' }">
+                      <div class="rtime">{{ formatTimeOfDay(run.created_at) }}</div>
+                      <div class="rdate">{{ formatDate(run.created_at) }}</div>
+                    </td>
+                    <template v-for="block in getGroupedSplitColumns(group.runs)" :key="'grp-' + block.group_index">
+                      <template v-for="(col, idx) in block.cols" :key="col.index">
+                        <td
+                          v-if="showSegments && !(block.group_index === 0 && idx === 0) && !(idx === 0)"
+                          class="td-segment col-border-right"
+                          :class="{
+                            'col-active-cell': getActiveSortCol(group.key, group.runs) === 'seg:' + block.cols[idx-1].index + ':' + col.index,
+                            'best-split': (() => {
+                              const seg = getSegmentTime(run, block.cols[idx-1].index, col.index)
+                              const best = getBestSegmentTimes(group.runs).get(block.cols[idx-1].index + ':' + col.index)
+                              return seg !== null && best !== undefined && seg === best
+                            })()
+                          }"
+                        >
+                          <span v-if="getSegmentTime(run, block.cols[idx-1].index, col.index) !== null">
+                            {{ formatRunTime(getSegmentTime(run, block.cols[idx-1].index, col.index)!) }}
+                          </span>
+                          <span v-else class="no-split">—</span>
+                        </td>
+                        <td
+                          v-if="(block.group_index > 0 || idx > 0) && showSplits"
+                          class="td-split col-border-right"
+                          :class="{
+                            'best-split': (() => { const s = run.splits.find(sp => sp.split_index === col.index); return s ? s.split_time === getBestSplitTimes(group.runs).get(col.index) : false })(),
+                            'col-active-cell': getActiveSortCol(group.key, group.runs) === 'split:' + col.index
+                          }"
+                        >
+                          <template v-if="run.splits.find(sp => sp.split_index === col.index)">
+                            {{ formatRunTime(run.splits.find(sp => sp.split_index === col.index)!.split_time) }}
+                          </template>
+                          <template v-else-if="isFailCellTable(run, col.index, group.runs)">
+                            <span class="run-failed-cell">{{ $t('fail') }}</span>
+                          </template>
+                          <span v-else class="no-split">—</span>
+                        </td>
+                      </template>
+                      <td v-if="showGroupTotals" class="td-group-total col-border-right">
+                        <span v-if="getGroupTime(run, block.group_index) !== null">
+                          {{ formatRunTime(getGroupTime(run, block.group_index)!) }}
+                        </span>
+                        <span v-else class="no-split">—</span>
+                      </td>
                     </template>
-                    <span v-else class="no-split">—</span>
-                  </td>
+                    <td class="td-del">
+                      <button
+                        class="record-delete"
+                        :disabled="pendingDeleteId === run.id"
+                        @click="askDelete(run.id)"
+                      >
+                        <img :src="imgGarbage">
+                      </button>
+                    </td>
+                  </tr>
                 </template>
-                <td class="td-del">
-                  <button
-                    class="record-delete"
-                    :disabled="pendingDeleteId === run.id"
-                    @click="askDelete(run.id)"
-                  >
-                    <img :src="imgGarbage">
-                  </button>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -893,6 +1060,11 @@ onUnmounted(() => {
   gap: 10px;
   box-shadow: 3px 3px 0 0 rgba(0,0,0,0.5);
   flex-shrink: 0;
+}
+
+.segments-toggle {
+  display: flex;
+  justify-self: center;
 }
 
 .template-title {
@@ -956,6 +1128,11 @@ onUnmounted(() => {
   min-height: 0;
 }
 
+.sequence-block {
+  border-bottom: 2px solid rgba(255, 0, 0, 0.5);
+  margin-bottom: 4px;
+}
+
 .history-table-wrap {
   min-width: max-content;
 }
@@ -994,6 +1171,10 @@ onUnmounted(() => {
   border-right: 1px solid rgba(127,127,127,0.5);
 }
 
+.th-del{
+  background: linear-gradient(90deg, var(--card-bg) 50%, var(--bg-color) 100%) !important;
+}
+
 .col-active {
   background: var(--card-bg);
 }
@@ -1021,16 +1202,16 @@ onUnmounted(() => {
 }
 
 .tr-splits td,
-.tr-confirm-delete td{
+.tr-confirm-delete td {
   padding: 4px;
   text-align: center;
   vertical-align: middle;
   white-space: nowrap;
 }
-.tr-confirm-delete .td-confirm-delete{
+.tr-confirm-delete .td-confirm-delete {
   text-align: end;
 }
-.tr-splits:hover{
+.tr-splits:hover {
   background-color: var(--card-bg);
 }
 .tr-splits:has(> .td-del:hover) {
@@ -1074,5 +1255,19 @@ onUnmounted(() => {
 .confirm-deletion-record,
 .cancel-deletion-record {
   height: 30px;
+}
+.checkbox-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.th-group-total,
+.td-group-total {
+  text-align: center;
+  white-space: nowrap;
+}
+.td-group-total{
+  color: var(--text-group-color);
 }
 </style>
