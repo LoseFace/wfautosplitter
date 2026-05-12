@@ -76,7 +76,7 @@ pub fn insert_run(conn: &mut Connection, run: Run) -> rusqlite::Result<i64> {
     for split in &run.splits {
         tx.execute(
             "INSERT INTO splits (run_id, split_index, split_name, split_time, group_index)
-             VALUES (?1, ?2, ?3, ?4)",
+             VALUES (?1, ?2, ?3, ?4, ?5)",
             params![run_id, split.split_index, &split.split_name, split.split_time, split.group_index],
         )?;
     }

@@ -147,13 +147,41 @@ const groupedRuns = computed(() => {
   }
 
   return [...map.entries()]
-    .map(([key, runs]) => ({ key, runs }))
+    .map(([key, runs]) => ({
+      key,
+      runs,
+      bestSplitTimes: getBestSplitTimes(runs),
+      bestSegmentTimes: getBestSegmentTimes(runs),
+      groupedSplitColumns: getGroupedSplitColumns(runs),
+      totalColumns: getTotalColumns(runs),
+      filteredRuns: [] as Run[],
+    }))
     .sort((a, b) => {
       const aMax = Math.max(...a.runs.map(r => r.created_at))
       const bMax = Math.max(...b.runs.map(r => r.created_at))
       return bMax - aMax
     })
 })
+
+const processedGroups = computed(() =>
+  groupedRuns.value.map(group => {
+    const activeSortCol = getActiveSortCol(group.key, group.runs)
+    const filteredRuns = getFilteredRuns(group.key, group.runs)
+    const splitColumns = getSplitColumns(group.runs)
+    return {
+      ...group,
+      filteredRuns,
+      activeSortCol,
+      processedRows: buildProcessedRows(
+        filteredRuns,
+        group.groupedSplitColumns,
+        group.bestSplitTimes,
+        group.bestSegmentTimes,
+        splitColumns,
+      ),
+    }
+  })
+)
 
 const tableSortStates = ref<Record<string, { col: string; dir: SortDir }>>({})
 
@@ -181,9 +209,8 @@ function getActiveSortCol(key: string, tableRuns: Run[]): string {
   return cols.length > 0 ? 'split:' + cols[cols.length - 1].index : 'date'
 }
 
-function tableSortIcon(key: string, col: string, tableRuns: Run[]): string {
-  const active = getActiveSortCol(key, tableRuns)
-  if (active !== col) return '⇅'
+function tableSortIcon(key: string, col: string, activeSortCol: string): string {
+  if (activeSortCol !== col) return '⇅'
   return getTableSort(key).dir === 'asc' ? '⇩' : '⇧'
 }
 
@@ -318,14 +345,73 @@ function getFilteredRuns(key: string, tableRuns: Run[]): Run[] {
   return list
 }
 
-function isFailCellTable(run: Run, colIndex: number, tableRuns: Run[]): boolean {
-  if (run.success) return false
-  const visibleCols = getSplitColumns(tableRuns).filter(c => c.index > 0)
-  const lastReached = [...visibleCols].reverse().find(c => run.splits.some(s => s.split_index === c.index))
-  if (!lastReached) return colIndex === visibleCols[0]?.index
-  const lastIdx = visibleCols.findIndex(c => c.index === lastReached.index)
-  const nextCol = visibleCols[lastIdx + 1]
-  return nextCol?.index === colIndex
+interface ProcessedCell {
+  segmentTime: number | null
+  splitTime: number | null
+  isBestSegment: boolean
+  isBestSplit: boolean
+  isFail: boolean
+  groupTime: number | null
+}
+
+interface ProcessedRow {
+  run: Run
+  cells: Map<string, ProcessedCell>
+}
+
+function buildProcessedRows(
+  tableRuns: Run[],
+  groupedCols: GroupBlock[],
+  bestSplitTimes: Map<number, number>,
+  bestSegmentTimes: Map<string, number>,
+  splitColumns: ReturnType<typeof getSplitColumns>
+): ProcessedRow[] {
+  return tableRuns.map(run => {
+    const splitMap = new Map<number, number>()
+    for (const s of run.splits) splitMap.set(s.split_index, s.split_time)
+
+    const visibleCols = splitColumns.filter(c => c.index > 0)
+    const lastReached = [...visibleCols].reverse().find(c => splitMap.has(c.index))
+    const failColIndex = (() => {
+      if (run.success) return null
+      if (!lastReached) return visibleCols[0]?.index ?? null
+      const lastIdx = visibleCols.findIndex(c => c.index === lastReached.index)
+      return visibleCols[lastIdx + 1]?.index ?? null
+    })()
+
+    const cells = new Map<string, ProcessedCell>()
+
+    for (const block of groupedCols) {
+      for (let idx = 0; idx < block.cols.length; idx++) {
+        const col = block.cols[idx]
+        const key = `${block.group_index}:${col.index}`
+
+        const splitTime = splitMap.get(col.index) ?? null
+
+        let segmentTime: number | null = null
+        let isBestSegment = false
+        if (idx > 0) {
+          const prevCol = block.cols[idx - 1]
+          const fromTime = splitMap.get(prevCol.index)
+          const toTime = splitMap.get(col.index)
+          if (fromTime !== undefined && toTime !== undefined) {
+            segmentTime = toTime - fromTime
+            const bestSeg = bestSegmentTimes.get(`${prevCol.index}:${col.index}`)
+            isBestSegment = bestSeg !== undefined && segmentTime === bestSeg
+          }
+        }
+
+        const isBestSplit = splitTime !== null && splitTime === bestSplitTimes.get(col.index)
+        const isFail = failColIndex === col.index
+
+        const groupTime = getGroupTime(run, block.group_index)
+
+        cells.set(key, { segmentTime, splitTime, isBestSegment, isBestSplit, isFail, groupTime })
+      }
+    }
+
+    return { run, cells }
+  })
 }
 
 function getSumOfBest(tableRuns: Run[]): number | null {
@@ -484,7 +570,6 @@ function onChartWheel(e: WheelEvent) {
 
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
 let chartInstance: Chart | null = null
-
 let unlistenRunSaved: UnlistenFn | null = null
 
 function getCssVar(name: string): string {
@@ -496,6 +581,157 @@ const text = getCssVar('--text-color')
 
 const chartHeight = ref(247)
 const yTicksLimit = computed(() => Math.max(2, Math.floor(chartHeight.value / 20)))
+
+let segmentTooltip: {
+  datasetIndex: number
+  pointIndex: number
+  x: number
+  y: number
+  label: string
+} | null = null
+
+const segmentTooltipPlugin: Plugin<'line'> = {
+  id: 'segmentTooltip',
+  afterEvent(chart, args) {
+    const event: ChartEvent = args.event
+    if (event.type !== 'mousemove' && event.type !== 'mouseout') return
+
+    if (event.type === 'mouseout') {
+      segmentTooltip = null
+      chart.draw()
+      return
+    }
+
+    const mx = event.x
+    const my = event.y
+    if (mx === null || my === null) return
+
+    const chartArea = chart.chartArea
+    if (mx < chartArea.left || mx > chartArea.right || my < chartArea.top || my > chartArea.bottom) {
+      if (segmentTooltip) { segmentTooltip = null; chart.draw() }
+      return
+    }
+
+    let found: typeof segmentTooltip = null
+
+    const meta0 = chart.getDatasetMeta(0)
+    if (!meta0.data.length) return
+
+    let closestRunIndex = 0
+    let closestDx = Infinity
+    for (let i = 0; i < meta0.data.length; i++) {
+      const dx = Math.abs(meta0.data[i].x - mx)
+      if (dx < closestDx) { closestDx = dx; closestRunIndex = i }
+    }
+
+    if (closestDx > (chart.chartArea.width / meta0.data.length) * 0.1) {
+      if (segmentTooltip) { segmentTooltip = null; chart.draw() }
+      return
+    }
+
+    const run = visibleChartRuns.value[closestRunIndex]
+    if (!run) return
+
+    const sorted = [...run.splits].sort((a, b) => a.split_index - b.split_index)
+
+    const splitPoints: { splitIndex: number; splitName: string; splitTime: number; y: number }[] = []
+
+    for (let di = 1; di < chart.data.datasets.length; di++) {
+      const meta = chart.getDatasetMeta(di)
+      const point = meta.data[closestRunIndex]
+      if (!point) continue
+      const dataset = chart.data.datasets[di]
+      const splitName = dataset.label as string
+      const datasetSplitIndex = (dataset as any).splitIndex as number | undefined
+      const split = datasetSplitIndex !== undefined
+        ? sorted.find(s => s.split_index === datasetSplitIndex)
+        : sorted.find(s => s.split_name === splitName || `Split ${s.split_index}` === splitName)
+      if (!split) continue
+      splitPoints.push({
+        splitIndex: split.split_index,
+        splitName: split.split_name,
+        splitTime: split.split_time,
+        y: point.y,
+      })
+    }
+
+    const meta0point = meta0.data[closestRunIndex]
+    if (meta0point) {
+      const lastActualSplit = sorted[sorted.length - 1]
+      splitPoints.push({
+        splitIndex: 999999,
+        splitName: lastActualSplit?.split_name,
+        splitTime: run.total_time,
+        y: meta0point.y,
+      })
+    }
+
+    splitPoints.sort((a, b) => b.y - a.y)
+
+    const margin = 6
+    for (let i = 1; i < splitPoints.length; i++) {
+      const bottom = splitPoints[i - 1]
+      const top = splitPoints[i]
+      const yMin = Math.min(bottom.y, top.y) + margin
+      const yMax = Math.max(bottom.y, top.y) - margin
+
+      if (my >= yMin && my <= yMax) {
+        const segTime = top.splitTime - bottom.splitTime
+
+        const fromName = bottom.splitName
+        const toName = top.splitName
+
+        found = {
+          datasetIndex: 0,
+          pointIndex: closestRunIndex,
+          x: meta0.data[closestRunIndex].x,
+          y: (bottom.y + top.y) / 2,
+          label: `${fromName} → ${toName}\n${formatRunTime(segTime)}`,
+        }
+        break
+      }
+    }
+
+    const changed = JSON.stringify(found) !== JSON.stringify(segmentTooltip)
+    segmentTooltip = found
+    if (changed) chart.draw()
+  },
+
+  afterDraw(chart) {
+    if (!segmentTooltip) return
+
+    const ctx = chart.ctx
+    const { x, y, label } = segmentTooltip
+    const lines = label.split('\n')
+    const padding = 6
+    const lineHeight = 16
+
+    ctx.save()
+    ctx.font = '12px sans-serif'
+    const maxW = Math.max(...lines.map((l: string) => ctx.measureText(l).width))
+    const boxW = maxW + padding * 2
+    const boxH = lines.length * lineHeight + padding * 2 - 5
+
+    let bx = x + 10
+    if (bx + boxW > chart.chartArea.right) bx = x - boxW - 10
+
+    const by = y - boxH / 2
+
+    ctx.fillStyle = 'rgba(0,0,0,0.8)'
+    ctx.beginPath()
+    ctx.roundRect(bx, by, boxW, boxH, 4)
+    ctx.fill()
+    ctx.fillStyle = 'rgba(255,255,255)'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'top'
+    const textX = bx + boxW / 2
+    lines.forEach((line: string, i: number) => {
+      ctx.fillText(line, textX, by + padding + i * lineHeight)
+    })
+
+    ctx.restore()
+  },
+}
 
 function onResizerMouseDown(e: MouseEvent) {
   e.preventDefault()
@@ -517,14 +753,7 @@ function onResizerMouseDown(e: MouseEvent) {
   window.addEventListener('mouseup', onUp)
 }
 
-function buildChart() {
-  if (!chartCanvas.value || visibleChartRuns.value.length === 0) return
-
-  if (chartInstance) {
-    chartInstance.destroy()
-    chartInstance = null
-  }
-
+function buildChartData() {
   const labels = visibleChartRuns.value.map(r => {
     const globalIndex = chartRuns.value.findIndex(cr => cr.id === r.id)
     return `${globalIndex + 1}`
@@ -537,7 +766,7 @@ function buildChart() {
     })
   })
 
-  const datasets = []
+  const datasets: any[] = []
   const totalData = visibleChartRuns.value.map(r => r.success ? r.total_time : null)
   const globalMinTime = Math.min(
     ...chartRuns.value
@@ -604,157 +833,22 @@ function buildChart() {
     })
   })
 
-  let segmentTooltip: {
-    datasetIndex: number
-    pointIndex: number
-    x: number
-    y: number
-    label: string
-  } | null = null
+  return { labels, datasets }
+}
 
-  const segmentTooltipPlugin: Plugin<'line'> = {
-    id: 'segmentTooltip',
-    afterEvent(chart, args) {
-      const event: ChartEvent = args.event
-      if (event.type !== 'mousemove' && event.type !== 'mouseout') return
+function buildChart() {
+  if (!chartCanvas.value || visibleChartRuns.value.length === 0) return
 
-      if (event.type === 'mouseout') {
-        segmentTooltip = null
-        chart.draw()
-        return
-      }
-
-      const mx = event.x
-      const my = event.y
-      if (mx === null || my === null) return
-
-      const chartArea = chart.chartArea
-      if (mx < chartArea.left || mx > chartArea.right || my < chartArea.top || my > chartArea.bottom) {
-        if (segmentTooltip) { segmentTooltip = null; chart.draw() }
-        return
-      }
-
-      let found: typeof segmentTooltip = null
-
-      const meta0 = chart.getDatasetMeta(0)
-      if (!meta0.data.length) return
-
-      let closestRunIndex = 0
-      let closestDx = Infinity
-      for (let i = 0; i < meta0.data.length; i++) {
-        const dx = Math.abs(meta0.data[i].x - mx)
-        if (dx < closestDx) { closestDx = dx; closestRunIndex = i }
-      }
-
-      if (closestDx > (chart.chartArea.width / meta0.data.length) * 0.1) {
-        if (segmentTooltip) { segmentTooltip = null; chart.draw() }
-        return
-      }
-
-      const run = visibleChartRuns.value[closestRunIndex]
-      if (!run) return
-
-      const sorted = [...run.splits].sort((a, b) => a.split_index - b.split_index)
-
-      const splitPoints: { splitIndex: number; splitName: string; splitTime: number; y: number }[] = []
-
-      for (let di = 1; di < chart.data.datasets.length; di++) {
-        const meta = chart.getDatasetMeta(di)
-        const point = meta.data[closestRunIndex]
-        if (!point) continue
-        const dataset = chart.data.datasets[di]
-        const splitName = dataset.label as string
-        const datasetSplitIndex = (dataset as any).splitIndex as number | undefined
-        const split = datasetSplitIndex !== undefined
-          ? sorted.find(s => s.split_index === datasetSplitIndex)
-          : sorted.find(s => s.split_name === splitName || `Split ${s.split_index}` === splitName)
-        if (!split) continue
-        splitPoints.push({
-          splitIndex: split.split_index,
-          splitName: split.split_name,
-          splitTime: split.split_time,
-          y: point.y,
-        })
-      }
-
-      const meta0point = meta0.data[closestRunIndex]
-      if (meta0point) {
-        const lastActualSplit = sorted[sorted.length - 1]
-        splitPoints.push({
-          splitIndex: 999999,
-          splitName: lastActualSplit?.split_name,
-          splitTime: run.total_time,
-          y: meta0point.y,
-        })
-      }
-
-      splitPoints.sort((a, b) => b.y - a.y)
-
-      const margin = 6
-      for (let i = 1; i < splitPoints.length; i++) {
-        const bottom = splitPoints[i - 1]
-        const top = splitPoints[i]
-        const yMin = Math.min(bottom.y, top.y) + margin
-        const yMax = Math.max(bottom.y, top.y) - margin
-
-        if (my >= yMin && my <= yMax) {
-          const segTime = top.splitTime - bottom.splitTime
-
-          const fromName = bottom.splitName
-          const toName = top.splitName
-
-          found = {
-            datasetIndex: 0,
-            pointIndex: closestRunIndex,
-            x: meta0.data[closestRunIndex].x,
-            y: (bottom.y + top.y) / 2,
-            label: `${fromName} → ${toName}\n${formatRunTime(segTime)}`,
-          }
-          break
-        }
-      }
-
-      const changed = JSON.stringify(found) !== JSON.stringify(segmentTooltip)
-      segmentTooltip = found
-      if (changed) chart.draw()
-    },
-
-    afterDraw(chart) {
-      if (!segmentTooltip) return
-
-      const ctx = chart.ctx
-      const { x, y, label } = segmentTooltip
-      const lines = label.split('\n')
-      const padding = 6
-      const lineHeight = 16
-
-      ctx.save()
-      ctx.font = '12px sans-serif'
-      const maxW = Math.max(...lines.map((l: string) => ctx.measureText(l).width))
-      const boxW = maxW + padding * 2
-      const boxH = lines.length * lineHeight + padding * 2 - 5
-
-      let bx = x + 10
-      if (bx + boxW > chart.chartArea.right) bx = x - boxW - 10
-
-      const by = y - boxH / 2
-
-      ctx.fillStyle = 'rgba(0,0,0,0.8)'
-      ctx.beginPath()
-      ctx.roundRect(bx, by, boxW, boxH, 4)
-      ctx.fill()
-      ctx.fillStyle = 'rgba(255,255,255)'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'top'
-      const textX = bx + boxW / 2
-      lines.forEach((line: string, i: number) => {
-        ctx.fillText(line, textX, by + padding + i * lineHeight)
-      })
-
-      ctx.restore()
-    },
+  if (chartInstance) {
+    const { labels, datasets } = buildChartData()
+    chartInstance.data.labels = labels
+    chartInstance.data.datasets = datasets
+    chartInstance.options.scales!.y!.ticks!.maxTicksLimit = yTicksLimit.value
+    chartInstance.update('none')
+    return
   }
 
+  const { labels, datasets } = buildChartData()
   chartInstance = new Chart(chartCanvas.value, {
     type: 'line',
     data: { labels, datasets },
@@ -774,12 +868,7 @@ function buildChart() {
           displayColors: false,
           callbacks: {
             title(items: TooltipItem<'line'>[]) {
-              const item = items[0]
-              const datasetLabel = item.dataset.label
-              if (datasetLabel === 'Total') {
-                return items[0].dataset.label
-              }
-              return datasetLabel
+              return items[0].dataset.label ?? ''
             },
             label(item: TooltipItem<'line'>) {
               return formatRunTime(item.raw as number)
@@ -809,7 +898,7 @@ function buildChart() {
 watch(visibleChartRuns, async () => {
   await nextTick()
   buildChart()
-}, { deep: true })
+})
 
 watch(yTicksLimit, () => {
   buildChart()
@@ -917,7 +1006,7 @@ onUnmounted(() => {
 
       <template v-else>
         <div
-          v-for="group in groupedRuns"
+          v-for="group in processedGroups"
           :key="group.key"
           class="sequence-block"
         >
@@ -927,29 +1016,29 @@ onUnmounted(() => {
                 <tr class="thead-splits">
                   <th
                     class="th-date sortable col-border-right"
-                    :class="{ 'col-active': getActiveSortCol(group.key, group.runs) === 'date' }"
+                    :class="{ 'col-active': group.activeSortCol === 'date' }"
                     @click="toggleTableSort(group.key, 'date')"
                   >
-                    {{ $t('date') }} <span class="sort-icon">{{ tableSortIcon(group.key, 'date', group.runs) }}</span>
+                    {{ $t('date') }} <span class="sort-icon">{{ tableSortIcon(group.key, 'date', group.activeSortCol) }}</span>
                   </th>
-                  <template v-for="block in getGroupedSplitColumns(group.runs)" :key="'grp-' + block.group_index">
+                  <template v-for="block in group.groupedSplitColumns" :key="'grp-' + block.group_index">
                     <template v-for="(col, idx) in block.cols" :key="col.index">
                       <th
                         v-if="showSegments && !(block.group_index === 0 && idx === 0) && !(idx === 0)"
                         class="th-segment sortable col-border-right"
-                        :class="{ 'col-active': getActiveSortCol(group.key, group.runs) === 'seg:' + block.cols[idx-1].index + ':' + col.index }"
+                        :class="{ 'col-active': group.activeSortCol === 'seg:' + block.cols[idx-1].index + ':' + col.index }"
                         @click="toggleTableSort(group.key, 'seg:' + block.cols[idx-1].index + ':' + col.index)"
                       >
                         <span class="seg-label">{{ block.cols[idx-1].name }} → {{ col.name }}</span>
-                        <span class="sort-icon">{{ tableSortIcon(group.key, 'seg:' + block.cols[idx-1].index + ':' + col.index, group.runs) }}</span>
+                        <span class="sort-icon">{{ tableSortIcon(group.key, 'seg:' + block.cols[idx-1].index + ':' + col.index, group.activeSortCol) }}</span>
                       </th>
                       <th
                         v-if="(block.group_index > 0 || idx > 0) && showSplits"
                         class="th-split sortable col-border-right"
-                        :class="{ 'col-active': getActiveSortCol(group.key, group.runs) === 'split:' + col.index }"
+                        :class="{ 'col-active': group.activeSortCol === 'split:' + col.index }"
                         @click="toggleTableSort(group.key, 'split:' + col.index)"
                       >
-                        {{ col.name }} <span class="sort-icon">{{ tableSortIcon(group.key, 'split:' + col.index, group.runs) }}</span>
+                        {{ col.name }} <span class="sort-icon">{{ tableSortIcon(group.key, 'split:' + col.index, group.activeSortCol) }}</span>
                       </th>
                     </template>
                     <th v-if="showGroupTotals" class="th-group-total col-border-right">
@@ -960,39 +1049,35 @@ onUnmounted(() => {
                 </tr>
               </thead>
               <tbody>
-                <template v-for="run in getFilteredRuns(group.key, group.runs)" :key="run.id">
-                  <tr v-if="pendingDeleteId === run.id" class="tr-confirm-delete">
+                <template v-for="row in group.processedRows" :key="row.run.id">
+                  <tr v-if="pendingDeleteId === row.run.id" class="tr-confirm-delete">
                     <td class="td-date col-border-right">
-                      <div class="rtime">{{ formatTimeOfDay(run.created_at) }}</div>
-                      <div class="rdate">{{ formatDate(run.created_at) }}</div>
+                      <div class="rtime">{{ formatTimeOfDay(row.run.created_at) }}</div>
+                      <div class="rdate">{{ formatDate(row.run.created_at) }}</div>
                     </td>
-                    <td :colspan="getTotalColumns(group.runs) - 1" class="td-confirm-delete">
+                    <td :colspan="group.totalColumns - 1" class="td-confirm-delete">
                       <span class="confirm-delete-text">{{ $t('delete_record') }}</span>
-                      <button class="confirm-deletion-record" @click="confirmDelete(run.id)">{{ $t('delete') }}</button>
+                      <button class="confirm-deletion-record" @click="confirmDelete(row.run.id)">{{ $t('delete') }}</button>
                       <button class="cancel-deletion-record" @click="cancelDelete()">{{ $t('cancel') }}</button>
                     </td>
                   </tr>
-                  <tr v-else class="tr-splits" :class="{ 'tr-failed': !run.success }">
-                    <td class="td-date col-border-right" :class="{ 'col-active-cell': getActiveSortCol(group.key, group.runs) === 'date' }">
-                      <div class="rtime">{{ formatTimeOfDay(run.created_at) }}</div>
-                      <div class="rdate">{{ formatDate(run.created_at) }}</div>
+                  <tr v-else class="tr-splits" :class="{ 'tr-failed': !row.run.success }">
+                    <td class="td-date col-border-right" :class="{ 'col-active-cell': group.activeSortCol === 'date' }">
+                      <div class="rtime">{{ formatTimeOfDay(row.run.created_at) }}</div>
+                      <div class="rdate">{{ formatDate(row.run.created_at) }}</div>
                     </td>
-                    <template v-for="block in getGroupedSplitColumns(group.runs)" :key="'grp-' + block.group_index">
+                    <template v-for="block in group.groupedSplitColumns" :key="'grp-' + block.group_index">
                       <template v-for="(col, idx) in block.cols" :key="col.index">
                         <td
                           v-if="showSegments && !(block.group_index === 0 && idx === 0) && !(idx === 0)"
                           class="td-segment col-border-right"
                           :class="{
-                            'col-active-cell': getActiveSortCol(group.key, group.runs) === 'seg:' + block.cols[idx-1].index + ':' + col.index,
-                            'best-split': (() => {
-                              const seg = getSegmentTime(run, block.cols[idx-1].index, col.index)
-                              const best = getBestSegmentTimes(group.runs).get(block.cols[idx-1].index + ':' + col.index)
-                              return seg !== null && best !== undefined && seg === best
-                            })()
+                            'col-active-cell': group.activeSortCol === 'seg:' + block.cols[idx-1].index + ':' + col.index,
+                            'best-split': row.cells.get(block.group_index + ':' + col.index)?.isBestSegment
                           }"
                         >
-                          <span v-if="getSegmentTime(run, block.cols[idx-1].index, col.index) !== null">
-                            {{ formatRunTime(getSegmentTime(run, block.cols[idx-1].index, col.index)!) }}
+                          <span v-if="row.cells.get(block.group_index + ':' + col.index)?.segmentTime !== null">
+                            {{ formatRunTime(row.cells.get(block.group_index + ':' + col.index)!.segmentTime!) }}
                           </span>
                           <span v-else class="no-split">—</span>
                         </td>
@@ -1000,22 +1085,22 @@ onUnmounted(() => {
                           v-if="(block.group_index > 0 || idx > 0) && showSplits"
                           class="td-split col-border-right"
                           :class="{
-                            'best-split': (() => { const s = run.splits.find(sp => sp.split_index === col.index); return s ? s.split_time === getBestSplitTimes(group.runs).get(col.index) : false })(),
-                            'col-active-cell': getActiveSortCol(group.key, group.runs) === 'split:' + col.index
+                            'best-split': row.cells.get(block.group_index + ':' + col.index)?.isBestSplit,
+                            'col-active-cell': group.activeSortCol === 'split:' + col.index
                           }"
                         >
-                          <template v-if="run.splits.find(sp => sp.split_index === col.index)">
-                            {{ formatRunTime(run.splits.find(sp => sp.split_index === col.index)!.split_time) }}
+                          <template v-if="row.cells.get(block.group_index + ':' + col.index)?.splitTime !== null">
+                            {{ formatRunTime(row.cells.get(block.group_index + ':' + col.index)!.splitTime!) }}
                           </template>
-                          <template v-else-if="isFailCellTable(run, col.index, group.runs)">
+                          <template v-else-if="row.cells.get(block.group_index + ':' + col.index)?.isFail">
                             <span class="run-failed-cell">{{ $t('fail') }}</span>
                           </template>
                           <span v-else class="no-split">—</span>
                         </td>
                       </template>
                       <td v-if="showGroupTotals" class="td-group-total col-border-right">
-                        <span v-if="getGroupTime(run, block.group_index) !== null">
-                          {{ formatRunTime(getGroupTime(run, block.group_index)!) }}
+                        <span v-if="row.cells.get(block.group_index + ':' + block.cols[0].index)?.groupTime !== null">
+                          {{ formatRunTime(row.cells.get(block.group_index + ':' + block.cols[0].index)!.groupTime!) }}
                         </span>
                         <span v-else class="no-split">—</span>
                       </td>
@@ -1023,8 +1108,8 @@ onUnmounted(() => {
                     <td class="td-del">
                       <button
                         class="record-delete"
-                        :disabled="pendingDeleteId === run.id"
-                        @click="askDelete(run.id)"
+                        :disabled="pendingDeleteId === row.run.id"
+                        @click="askDelete(row.run.id)"
                       >
                         <img :src="imgGarbage">
                       </button>
