@@ -91,7 +91,7 @@
   "show_groups":"Показать незавершенные группы",
   "sum_of_best_desc":"Показать сумму лучших сегментов",
   "predicting_timer":"Показать прогнозируемое время забега: Сбой, максимальный уровень",
-  "predicting_timer_desc":"It is calculated using the following formula:\n(total time spent on completed rounds × 45 ÷ number of completed rounds)\n+ time until the first round",
+  "predicting_timer_desc":"Оно рассчитывается по следующей формуле:\n(время, затраченное на пройденные раунды × 45 ÷ количество пройденных раундов)\n+ время до начала первого раунда",
   "fake_timer":"Показывать фальшивый таймер",
   "fake_timer_desc":"Фальшивый, потому что не влияет на запись времени.",
   "run_aborted":"Показывать количество отмененных или проваленных забегов",

@@ -1,2 +1,1 @@
-- Added a mission duration prediction for “Disruption” for 45 rounds.
-    - Added a checkbox for this in the overlay settings.
+- Added a translation for the description of the predicted mission duration “Disruption level cap”.
