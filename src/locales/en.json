@@ -90,6 +90,8 @@
   "split_separators":"Show split separators",
   "show_groups":"Show incomplete groups",
   "sum_of_best_desc":"Show the sum of the best segments",
+  "predicting_timer":"Show the predicted time of the race: Disruption level cap",
+  "predicting_timer_desc":"It is calculated using the following formula:\n(total time spent on completed rounds × 45 ÷ number of completed rounds)\n+ time until the first round",
   "fake_timer":"Show fake timer",
   "fake_timer_desc":"It's fake because it doesn't affect the time recording.",
   "run_aborted":"Show the number of canceled or failed missions",
@@ -104,6 +106,7 @@
   "toggle_mode":"Toggle mode",
   "waiting":"Waiting...",
   "sum_of_best":"SoBS",
+  "predicting":"predict",
   "failures":"fails",
   "sum_of_the_last":"SoLR",
   

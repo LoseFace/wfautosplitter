@@ -160,8 +160,10 @@ function cycleSort() {
       >
         <div class="raceName">{{ s.template_name }}</div>
         <p class="vertsep"></p>
-        <div class="raceTime">{{ formatTime(s.best_time) }}</div>
-        <p class="vertsep"></p>
+        <div class="raceTime" v-if="s.best_time < 1e308">
+          <div>{{ formatTime(s.best_time) }}</div>
+          <p class="vertsep"></p>
+        </div>
         <div class="raceDate">{{ formatDate(s.best_run_date) }}</div>
         <p class="vertsep"></p>
         <button class="race-statistic-btn" @click="openStatistic(s)">{{ $t('statistic') }}</button>
@@ -219,6 +221,18 @@ function cycleSort() {
 }
 .race-statistic-btn {
   padding: 0px 10px;
+}
+
+.raceTime{
+  display: flex;
+  padding: 0 !important;
+  flex-direction: row;
+  align-items: center;
+  height: 100%;
+}
+.raceTime,
+.raceTime > p{
+  margin-left: 10px;
 }
 
 .status-msg {

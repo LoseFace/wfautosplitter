@@ -131,6 +131,8 @@ pub struct OverlaySettings {
     drag_mode: bool,
     toggle_mode_key: String,
     run_reset_key: String,
+    #[serde(default)]
+    predicting_timer: bool,
 }
 
 struct SettingsState {
@@ -171,6 +173,7 @@ fn default_settings() -> AppSettings {
             drag_mode: true,
             toggle_mode_key: "F5".into(),
             run_reset_key: "F4".into(),
+            predicting_timer: false,
         },
     }
 }

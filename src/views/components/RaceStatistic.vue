@@ -1055,7 +1055,7 @@ onUnmounted(() => {
                       <div class="rtime">{{ formatTimeOfDay(row.run.created_at) }}</div>
                       <div class="rdate">{{ formatDate(row.run.created_at) }}</div>
                     </td>
-                    <td :colspan="group.totalColumns - 1" class="td-confirm-delete">
+                    <td :colspan="9999" class="td-confirm-delete">
                       <span class="confirm-delete-text">{{ $t('delete_record') }}</span>
                       <button class="confirm-deletion-record" @click="confirmDelete(row.run.id)">{{ $t('delete') }}</button>
                       <button class="cancel-deletion-record" @click="cancelDelete()">{{ $t('cancel') }}</button>
@@ -1211,6 +1211,9 @@ onUnmounted(() => {
   overflow-y: auto;
   overflow-x: auto;
   min-height: 0;
+}
+.status-msg{
+  padding: 10px;
 }
 
 .sequence-block {

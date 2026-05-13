@@ -186,6 +186,21 @@ onMounted(async () => {
         </label>
       </div>
 
+      <div class="predicting-timer">
+        <label class="custom-checkbox">
+          {{ $t('predicting_timer') }}
+          <input
+            type="checkbox"
+            v-model="settings.overlay.predicting_timer"
+          />
+          <span class="checkmark"></span>
+        </label>
+
+        <div class="predicting-timer-desc">
+          {{ $t('predicting_timer_desc') }}
+        </div>
+      </div>
+
       <div class="fake-timer">
         <label class="custom-checkbox">
           {{ $t('fake_timer') }}
@@ -299,9 +314,11 @@ fieldset > div:hover{
 }
 .enable-overlay-desc,
 .number-of-splits-desc,
-.fake-timer-desc{
+.fake-timer-desc,
+.predicting-timer-desc{
   font-size: 15px;
   margin-top: 5px;
+  white-space: pre-line;
 }
 
 .reset-overlay-settings button{

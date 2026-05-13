@@ -28,6 +28,7 @@ export interface AppSettings {
     split_separators: boolean
     group_list: boolean
     sum_of_best: boolean
+    predicting_timer: boolean
     fake_timer: boolean
     run_aborted: boolean
     sum_of_the_last: number

@@ -90,6 +90,8 @@
   "split_separators":"Відображати роздільники сплітів",
   "show_groups":"Відображати незавершені групи",
   "sum_of_best_desc":"Відображати суму найкращих сегментів",
+  "predicting_timer":"Відображати прогнозований час забігу: Збій, максимальний рівень",
+  "predicting_timer_desc":"It is calculated using the following formula:\n(total time spent on completed rounds × 45 ÷ number of completed rounds)\n+ time until the first round",
   "fake_timer":"Відображати несправжній таймер",
   "fake_timer_desc":"Несправжній, тому що не впливає на фіксацію часу.",
   "run_aborted":"Відображати кількість скасованих або зірваних забігів",
@@ -104,6 +106,7 @@
   "toggle_mode":"Перемикнути режим",
   "waiting":"Очікування...",
   "sum_of_best":"СНС",
+  "predicting":"прогноз",
   "failures":"зриви",
   "sum_of_the_last":"СОЗ",
   

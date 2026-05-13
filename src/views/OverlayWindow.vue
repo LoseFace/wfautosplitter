@@ -49,6 +49,18 @@ const frozenGoldSplitMap = ref<Map<number, boolean>>(new Map())
 const frozenGoldSegmentMap = ref<Map<number, boolean>>(new Map())
 const hasFrozenDeltas = computed(() => frozenDeltaMap.value.size > 0)
 
+const disruptionPredictedTime = ref<number | null>(null)
+
+const showPredictingTimer = computed(() =>
+  (settings.overlay?.predicting_timer ?? false) &&
+  overlayState.value.is_running &&
+  disruptionPredictedTime.value !== null
+)
+
+function resetDisruptionPrediction() {
+  disruptionPredictedTime.value = null
+}
+
 async function loadBestSegments(templateId: string) {
   if (!templateId) {
     bestSegmentMap.value = new Map()
@@ -370,6 +382,8 @@ watch(() => overlayState.value.is_running, (isRunning) => {
     frozenDeltaMap.value = new Map()
     frozenGoldSplitMap.value = new Map()
     frozenGoldSegmentMap.value = new Map()
+  } else {
+    resetDisruptionPrediction()
   }
 })
 
@@ -560,6 +574,7 @@ onMounted(async () => {
 
   await listen('run-reset', () => {
     stopFakeTimer(null)
+    resetDisruptionPrediction()
     overlayState.value = {
       ...overlayState.value,
       is_running: false,
@@ -590,6 +605,13 @@ onMounted(async () => {
       abortCount.value = match?.abort_count ?? 0
     } catch {}
   })
+
+  await listen<{ predicted_time: number | null; completed_rounds: number }>(
+    'disruption-prediction',
+    (event) => {
+      disruptionPredictedTime.value = event.payload.predicted_time
+    }
+  )
 
   setStartTimerCallback(() => {
     if (!timerInterval) startFakeTimer()
@@ -734,10 +756,12 @@ const updateSize = async () => {
           </div>
         </div>
       </div>
-
       
       <div class="sum-best" v-if="showSumOfBest && sumOfBest !== null">
         {{ $t('sum_of_best') }}: {{ formatTime(sumOfBest) }}
+      </div>
+      <div class="predicting-timer" v-if="showPredictingTimer">
+        {{ $t('predicting') }}: {{ formatTime(disruptionPredictedTime!) }}
       </div>
       <div class="timer" v-if="showTimer">{{ displayTimer }}</div>
       <div class="pending-groups" v-if="showGroupList">
@@ -876,7 +900,8 @@ const updateSize = async () => {
 
 .timer,
 .failures,
-.sum-best{
+.sum-best,
+.predicting-timer {
   align-self: end;
   padding-right: 5px;
   color: white;
@@ -884,7 +909,8 @@ const updateSize = async () => {
   text-shadow: 1px 1px 2px rgba(0, 0, 0);
 }
 .sum-best,
-.failures{
+.failures,
+.predicting-timer {
   font-size: 15px;
 }
 

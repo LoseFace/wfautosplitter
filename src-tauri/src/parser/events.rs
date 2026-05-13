@@ -47,4 +47,8 @@ pub enum LogEvent {
         frozen_time: f64,
     },
     TimerResume,
+    DisruptionPrediction {
+        predicted_time: Option<f64>,
+        completed_rounds: u32,
+    },
 }

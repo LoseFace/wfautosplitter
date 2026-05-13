@@ -31,6 +31,12 @@ pub struct OverlayState {
     pub pending_groups: Vec<GroupInfo>,
 }
 
+#[derive(Serialize, Clone)]
+pub struct DisruptionPredictionPayload {
+    pub predicted_time: Option<f64>,
+    pub completed_rounds: u32,
+}
+
 pub struct OverlayBridge {
     receiver: Receiver<LogEvent>,
     app_handle: tauri::AppHandle,
@@ -193,15 +199,14 @@ impl OverlayBridge {
                             split.is_completed = true;
                             split.split_time = relative_time;
                             state.current_timer = relative_time;
-                        }
 
-                        if is_end_mission {
-                            state.added_groups.insert(group_id.clone(), true);
-                            state.last_group_end_time = split_time;
-
-                            if state.exclude_time_between_groups {
-                                if let Some(frozen) = relative_time {
-                                    let _ = self.app_handle.emit("timer-pause", frozen);
+                            if is_end_mission {
+                                state.added_groups.insert(group_id.clone(), true);
+                                state.last_group_end_time = split_time;
+                                if state.exclude_time_between_groups {
+                                    if let Some(frozen) = relative_time {
+                                        let _ = self.app_handle.emit("timer-pause", frozen);
+                                    }
                                 }
                             }
                         }
@@ -330,6 +335,11 @@ impl OverlayBridge {
 
                     LogEvent::TimerResume => {
                         let _ = self.app_handle.emit("timer-resume", ());
+                    }
+
+                    LogEvent::DisruptionPrediction { predicted_time, completed_rounds } => {
+                        let payload = DisruptionPredictionPayload { predicted_time, completed_rounds };
+                        let _ = self.app_handle.emit("disruption-prediction", payload);
                     }
                 }
             }

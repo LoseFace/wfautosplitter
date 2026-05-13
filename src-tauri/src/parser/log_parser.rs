@@ -7,6 +7,49 @@ use crossbeam_channel::Sender;
 use uuid::Uuid;
 use std::collections::HashSet;
 
+const DISRUPTION_MISSION_START: &str = "OnStateStarted";
+const DISRUPTION_ROUND_START:   &str = "SentientArtifactMission.lua: Disruption: Intro door was unlocked";
+const DISRUPTION_ROUND_DONE:    &str = "Disruption: State change: ARTIFACT_ROUND_DONE";
+const DISRUPTION_TOTAL_ROUNDS:  u32  = 45;
+
+struct DisruptionTracker {
+    mission_start_log_time: Option<f64>,
+    first_round_log_time: Option<f64>,
+    pre_round_offset: Option<f64>,
+    current_round_start_log_time: Option<f64>,
+    round_durations_sum: f64,
+    completed_rounds: u32,
+    active: bool,
+}
+
+impl DisruptionTracker {
+    fn new() -> Self {
+        Self {
+            mission_start_log_time: None,
+            first_round_log_time: None,
+            pre_round_offset: None,
+            current_round_start_log_time: None,
+            round_durations_sum: 0.0,
+            completed_rounds: 0,
+            active: false,
+        }
+    }
+
+    fn reset(&mut self) {
+        *self = Self::new();
+    }
+
+    fn predicted_time(&self) -> Option<f64> {
+        if self.completed_rounds == 0 {
+            return None;
+        }
+        let offset = self.pre_round_offset?;
+        let avg_total = self.round_durations_sum * DISRUPTION_TOTAL_ROUNDS as f64
+            / self.completed_rounds as f64;
+        Some(offset + avg_total)
+    }
+}
+
 pub struct LogParser {
     templates: Vec<RuntimeTemplate>,
     active_run: Option<usize>,
@@ -16,6 +59,7 @@ pub struct LogParser {
     templates_modified: Option<std::time::SystemTime>,
     event_sender: Option<Sender<LogEvent>>,
     mission_aborts: i64,
+    disruption: DisruptionTracker,
 }
 
 impl LogParser {
@@ -121,7 +165,6 @@ impl LogParser {
     pub fn reload_templates(&mut self) {
         if let Some(index) = self.active_run {
             let runtime = &mut self.templates[index];
-            let name = runtime.template.name.clone();
             runtime.reset();
             self.send_event(LogEvent::RunReset);
             self.active_run = None;
@@ -176,17 +219,81 @@ impl LogParser {
             templates_modified: None,
             event_sender: None,
             mission_aborts: 0,
+            disruption: DisruptionTracker::new(),
         };
 
         parser.reload_templates();
         parser
     }
 
+    fn process_disruption_line(&mut self, line: &str) -> Option<LogEvent> {
+        let time = Self::extract_time(line);
+
+        if line.contains(DISRUPTION_MISSION_START) {
+            if let Some(t) = time {
+                self.disruption.reset();
+                self.disruption.mission_start_log_time = Some(t);
+                self.disruption.active = true;
+            }
+            return None;
+        }
+
+        if !self.disruption.active {
+            return None;
+        }
+
+        if line.contains(DISRUPTION_ROUND_START) && self.disruption.first_round_log_time.is_none() {
+            if let (Some(t), Some(mission_t)) = (time, self.disruption.mission_start_log_time) {
+                self.disruption.first_round_log_time = Some(t);
+                self.disruption.current_round_start_log_time = Some(t);
+                let offset = (t - mission_t).max(0.0);
+                self.disruption.pre_round_offset = Some(offset);
+            }
+            return None;
+        }
+
+        if line.contains(DISRUPTION_ROUND_DONE) {
+            if let (Some(t), Some(round_start)) = (time, self.disruption.current_round_start_log_time) {
+                let duration = (t - round_start).max(0.0);
+                self.disruption.round_durations_sum += duration;
+                self.disruption.completed_rounds += 1;
+                self.disruption.current_round_start_log_time = Some(t);
+
+                if self.disruption.completed_rounds >= DISRUPTION_TOTAL_ROUNDS {
+                    self.disruption.active = false;
+                    return Some(LogEvent::DisruptionPrediction {
+                        predicted_time: None,
+                        completed_rounds: self.disruption.completed_rounds,
+                    });
+                }
+
+                if let Some(predicted) = self.disruption.predicted_time() {
+                    return Some(LogEvent::DisruptionPrediction {
+                        predicted_time: Some((predicted * 1000.0).round() / 1000.0),
+                        completed_rounds: self.disruption.completed_rounds,
+                    });
+                }
+            }
+        }
+
+        None
+    }
+
+
     pub fn process_line(&mut self, line: &str, _app: &AppHandle) {
+        if let Some(event) = self.process_disruption_line(line) {
+            self.send_event(event);
+        }
+
         if line.contains(&self.cancel_keyword)
             || line.contains(&self.exit_keyword)
             || line.contains(&self.failed_keyword)
         {
+            self.disruption.reset();
+            self.send_event(LogEvent::DisruptionPrediction {
+                predicted_time: None,
+                completed_rounds: 0,
+            });
             self.reset_active_run("RUN RESET");
             return;
         }
