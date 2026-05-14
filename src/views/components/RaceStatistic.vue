@@ -1218,6 +1218,7 @@ onUnmounted(() => {
 
 .sequence-block {
   border-bottom: 2px solid rgba(255, 0, 0, 0.5);
+  width: max-content;
   margin-bottom: 4px;
 }
 

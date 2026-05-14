@@ -1,3 +1,2 @@
-- The finish codes in the default templates have been updated for greater timer accuracy.
-- Fixed the behavior of the “Exclude Gaps” function in templates.
-- Fixed the indexing of groups in the database.
+- Added support for processing log entries without timestamps.
+- Fixed the logic for waiting for splits between different groups.

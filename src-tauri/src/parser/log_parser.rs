@@ -60,6 +60,7 @@ pub struct LogParser {
     event_sender: Option<Sender<LogEvent>>,
     mission_aborts: i64,
     disruption: DisruptionTracker,
+    last_known_time: Option<f64>,
 }
 
 impl LogParser {
@@ -220,6 +221,7 @@ impl LogParser {
             event_sender: None,
             mission_aborts: 0,
             disruption: DisruptionTracker::new(),
+            last_known_time: None,
         };
 
         parser.reload_templates();
@@ -281,6 +283,9 @@ impl LogParser {
 
 
     pub fn process_line(&mut self, line: &str, _app: &AppHandle) {
+        if let Some(t) = Self::extract_time(line) {
+            self.last_known_time = Some(t);
+        }
         if let Some(event) = self.process_disruption_line(line) {
             self.send_event(event);
         }
@@ -332,7 +337,7 @@ impl LogParser {
             let runtime = &mut self.templates[index];
             let event_sender = self.event_sender.as_ref();
 
-            if Self::process_template(event_sender, runtime, line) {
+            if Self::process_template(event_sender, runtime, line, self.last_known_time) {
                 self.active_run = None;
             }
 
@@ -382,7 +387,7 @@ impl LogParser {
                     };
 
                     let run_start_time = if trigger_only {
-                        Self::extract_time(line)
+                        Self::extract_time(line).or(self.last_known_time)
                     } else {
                         None
                     };
@@ -417,6 +422,12 @@ impl LogParser {
 
         if Self::is_trigger_only_template(runtime) {
             return None;
+        }
+
+        if let Some(active) = runtime.active_group {
+            if !runtime.finished_groups[active] {
+                return None;
+            }
         }
 
         for (g_idx, g) in runtime.template.groups.iter().enumerate() {
@@ -519,8 +530,9 @@ impl LogParser {
         event_sender: Option<&Sender<LogEvent>>,
         runtime: &mut RuntimeTemplate,
         line: &str,
+        last_known_time: Option<f64>,
     ) -> bool {
-        let time = Self::extract_time(line);
+        let time = Self::extract_time(line).or(last_known_time);
 
         if runtime.active_group.is_none() {
             if runtime.template.sequential_mode {
@@ -668,7 +680,6 @@ impl LogParser {
             if let Some(t) = time {
                 runtime.group_end_time[group_index] = Some(t);
             }
-
             if runtime.all_groups_finished() {
                 if let (Some(start), Some(end)) = (runtime.run_start_time, runtime.last_split_time) {
                     let mut total = end - start;

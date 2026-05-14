@@ -18485,7 +18485,7 @@
           {
             "type": "EndMission",
             "order": 6,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBossExtPFourDead",
+            "trigger_keyword": "DBossExtPFourDead1040Exploiter) starting",
             "split_name": "Orb defeated"
           }
         ]
