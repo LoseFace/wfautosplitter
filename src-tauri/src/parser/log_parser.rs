@@ -318,6 +318,7 @@ impl LogParser {
                             name: s.split_name.clone(),
                             order: s.order as u32,
                             step_type: format!("{:?}", s.step_type),
+                            group_index: new_group_idx as u32,
                         })
                         .collect();
 
@@ -358,12 +359,14 @@ impl LogParser {
 
                     let group_splits = if runtime.template.sequential_mode {
                         runtime.template.groups.iter()
-                            .flat_map(|g| g.steps.iter())
-                            .map(|s| SplitInfo {
+                            .enumerate()
+                            .flat_map(|(g_idx, g)| g.steps.iter().map(move |s| (g_idx, s)))
+                            .map(|(g_idx, s)| SplitInfo {
                                 id: Uuid::new_v4().to_string(),
                                 name: s.split_name.clone(),
                                 order: s.order as u32,
                                 step_type: format!("{:?}", s.step_type),
+                                group_index: g_idx as u32,
                             })
                             .collect()
                     } else {
@@ -373,6 +376,7 @@ impl LogParser {
                                 name: s.split_name.clone(),
                                 order: s.order as u32,
                                 step_type: format!("{:?}", s.step_type),
+                                group_index: 0,
                             })
                             .collect()
                     };

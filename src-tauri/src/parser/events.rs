@@ -6,6 +6,7 @@ pub struct SplitInfo {
     pub name: String,
     pub order: u32,
     pub step_type: String,
+    pub group_index: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]

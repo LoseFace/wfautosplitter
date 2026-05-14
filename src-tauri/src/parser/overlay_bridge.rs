@@ -128,7 +128,7 @@ impl OverlayBridge {
                                     name: s.name,
                                     group_id: "".to_string(),
                                     order: idx as u32,
-                                    group_index: 0,
+                                    group_index: s.group_index as i64,
                                     is_completed: false,
                                     split_time: None,
                                 })
@@ -192,6 +192,15 @@ impl OverlayBridge {
                                 split.is_completed = true;
                                 split.split_time = relative_time;
                                 state.current_timer = relative_time;
+
+                                if is_end_mission {
+                                    state.last_group_end_time = split_time;
+                                    if state.exclude_time_between_groups {
+                                        if let Some(frozen) = relative_time {
+                                            let _ = self.app_handle.emit("timer-pause", frozen);
+                                        }
+                                    }
+                                }
                             }
                         } else if let Some(split) = state.splits.iter_mut().find(|s| {
                             s.group_id == group_id && s.name == split_name && !s.is_completed

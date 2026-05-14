@@ -1,1 +1,3 @@
-- Added a translation for the description of the predicted mission duration “Disruption level cap”.
+- The finish codes in the default templates have been updated for greater timer accuracy.
+- Fixed the behavior of the “Exclude Gaps” function in templates.
+- Fixed the indexing of groups in the database.
