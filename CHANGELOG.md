@@ -1,2 +1,2 @@
-- Added support for processing log entries without timestamps.
-- Fixed the logic for waiting for splits between different groups.
+- “Sum of the best segments” will not be displayed if there isn’t at least one completed race.
+- Some cosmetic fixes.

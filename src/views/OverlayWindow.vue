@@ -757,7 +757,7 @@ const updateSize = async () => {
         </div>
       </div>
       
-      <div class="sum-best" v-if="showSumOfBest && sumOfBest !== null">
+      <div class="sum-best" v-if="showSumOfBest && sumOfBest !== null && hasBestRun">
         {{ $t('sum_of_best') }}: {{ formatTime(sumOfBest) }}
       </div>
       <div class="predicting-timer" v-if="showPredictingTimer">

@@ -236,9 +236,7 @@ function cycleSort() {
 }
 
 .status-msg {
-  margin: 20px 0 0 10px;
-  opacity: 0.6;
-  font-size: 0.9em;
+  margin: 10px;
 }
 .status-error {
   color: var(--error, #e74c3c);

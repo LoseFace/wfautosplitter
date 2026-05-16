@@ -917,7 +917,7 @@ onUnmounted(() => {
   <div class="race-statistic">
     <div class="template-title" v-if="summary.template_name && runs.length >= 2">
       <span>{{ summary.template_name }}</span>
-      <span v-if="getSumOfBest(runs) !== null">{{ $t('sum_of_best') }}: {{ formatRunTime(getSumOfBest(runs)!) }}</span>
+      <span v-if="runs.some(r => r.success) && getSumOfBest(runs) !== null">{{ $t('sum_of_best') }}: {{ formatRunTime(getSumOfBest(runs)!) }}</span>
       <span>{{ $t('failures') }}: {{ localAbortCount }}</span>
     </div>
 
@@ -1218,7 +1218,7 @@ onUnmounted(() => {
 
 .sequence-block {
   border-bottom: 2px solid rgba(255, 0, 0, 0.5);
-  width: max-content;
+  /* width: max-content; */
   margin-bottom: 4px;
 }
 
