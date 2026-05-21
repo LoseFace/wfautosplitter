@@ -688,7 +688,7 @@ const updateSize = async () => {
 
   const rect = overlayElement.value.getBoundingClientRect()
   const width = Math.min(Math.max(Math.ceil(rect.width), 50), 600)
-  const height = Math.max(Math.ceil(rect.height), 50)
+  const height = Math.max(Math.ceil(rect.height), 20)
 
   try {
     await overlayWindowRef.value.setSize(new LogicalSize(width, height))
@@ -799,7 +799,7 @@ const updateSize = async () => {
 .overlay-window {
   height: max-content;
   width: 300px;
-  min-height: 30px;
+  min-height: 20px;
   position: relative;
   display: inline-block;
   color: white;

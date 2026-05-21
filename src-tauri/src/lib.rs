@@ -214,6 +214,9 @@ fn get_default_settings() -> AppSettings {
     default_settings()
 }
 
+fn is_valid_position(x: i32, y: i32) -> bool {
+    x > -31000 && y > -31000
+}
 #[tauri::command]
 fn set_settings(
     new_settings: AppSettings,
@@ -221,19 +224,25 @@ fn set_settings(
     app: tauri::AppHandle,
 ) {
     let mut settings = state.inner.lock().unwrap();
-    *settings = new_settings.clone();
 
-    save_settings_to_file(&new_settings);
+    let mut safe_settings = new_settings.clone();
+    if !is_valid_position(new_settings.window.pos_x, new_settings.window.pos_y) {
+        safe_settings.window.pos_x = settings.window.pos_x;
+        safe_settings.window.pos_y = settings.window.pos_y;
+    }
+
+    *settings = safe_settings.clone();
+    save_settings_to_file(&safe_settings);
 
     if let Some(window) = app.get_webview_window("overlay-window") {
-        if new_settings.overlay.show {
+        if safe_settings.overlay.show {
             let _ = window.show();
         } else {
             let _ = window.hide();
         }
     }
 
-    app.emit("settings-updated", new_settings).unwrap();
+    app.emit("settings-updated", safe_settings).unwrap();
 }
 
 #[tauri::command]

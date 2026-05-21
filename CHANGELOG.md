@@ -1,2 +1,1 @@
-- “Sum of the best segments” will not be displayed if there isn’t at least one completed race.
-- Some cosmetic fixes.
+- Fixed a bug where the application window was not displayed on the screen.

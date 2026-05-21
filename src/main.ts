@@ -5,7 +5,7 @@ import i18n from "./i18n"
 import "./assets/global.css"
 import { initTheme } from "./theme/initTheme"
 import { initSettings, settings } from "./services/settings"
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window"
+import { getCurrentWindow, LogicalSize, LogicalPosition } from "@tauri-apps/api/window"
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { invoke } from "@tauri-apps/api/core"
 import { listen, emit } from '@tauri-apps/api/event'
@@ -120,6 +120,18 @@ async function bootstrap() {
   initTheme()
 
   const appWindow = getCurrentWindow()
+  const pos_x = settings.window.pos_x
+  const pos_y = settings.window.pos_y
+
+  if (pos_x > -31000 && pos_y > -31000) {
+    await appWindow.setPosition(new LogicalPosition(pos_x, pos_y))
+  }
+  appWindow.onMoved(async ({ payload: pos }) => {
+    if (pos.x <= -31000 || pos.y <= -31000) return
+    
+    settings.window.pos_x = pos.x
+    settings.window.pos_y = pos.y
+  })
   await appWindow.setSize(new LogicalSize(
     Math.max(settings.window.x, 700),
     Math.max(settings.window.y, 250),
