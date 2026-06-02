@@ -1,1 +1,1 @@
-- Fixed a bug where the application window was not displayed on the screen.
+- Adding a template from the default list now creates a new template with a unique ID.

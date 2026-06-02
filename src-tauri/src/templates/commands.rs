@@ -1,26 +1,14 @@
-use std::collections::HashSet;
 use tauri::{AppHandle, Manager};
 use uuid::Uuid;
 
-use crate::templates::model::{Step, Template};
+use crate::templates::model::{Template};
 use crate::templates::storage::{load_templates, save_templates};
-
-fn get_first_mission_code(t: &Template) -> Option<String> {
-    t.groups.get(0).and_then(|g| {
-        g.steps.iter().find_map(|step| {
-            if let Step::StartMission { mission_code, .. } = step {
-                mission_code.clone()
-            } else {
-                None
-            }
-        })
-    })
-}
 
 #[tauri::command]
 pub fn import_default_templates(app: AppHandle) -> Result<(), String> {
     use std::fs;
     use std::path::PathBuf;
+    use std::collections::HashSet;
 
     let app_dir = app.path().app_data_dir().unwrap();
     let mut current_templates = load_templates(&app_dir)?;
@@ -43,21 +31,15 @@ pub fn import_default_templates(app: AppHandle) -> Result<(), String> {
     }
 
     let data = fs::read_to_string(&default_path).map_err(|e| e.to_string())?;
-
     let default_templates: Vec<Template> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
 
-    let existing_ids: HashSet<String> = current_templates.iter().map(|t| t.id.clone()).collect();
-    let existing_keys: HashSet<(String, Option<String>)> = current_templates
-        .iter()
-        .map(|t| (t.name.clone(), get_first_mission_code(t)))
-        .collect();
+    let existing_names: HashSet<String> = current_templates.iter().map(|t| t.name.clone()).collect();
 
-    for template in default_templates {
-        let key = (template.name.clone(), get_first_mission_code(&template));
-        if !existing_ids.contains(&template.id) && !existing_keys.contains(&key) {
-            let mut new_template = template;
-            new_template.is_active = false;
-            current_templates.push(new_template);
+    for mut template in default_templates {
+        if !existing_names.contains(&template.name) {
+            template.id = Uuid::new_v4().to_string();
+            template.is_active = false;
+            current_templates.push(template);
         }
     }
 
@@ -143,22 +125,17 @@ pub fn get_default_templates(app: AppHandle) -> Result<Vec<Template>, String> {
 }
 
 #[tauri::command]
-pub fn import_default_template(app: AppHandle, template: Template) -> Result<(), String> {
+pub fn import_default_template(app: AppHandle, mut template: Template) -> Result<(), String> {
     let app_dir = app.path().app_data_dir().unwrap();
     let mut templates = load_templates(&app_dir)?;
 
-    let key = (template.name.clone(), get_first_mission_code(&template));
-    let exists_by_id = templates.iter().any(|t| t.id == template.id);
-    let exists_by_key = templates.iter().any(|t| (t.name.clone(), get_first_mission_code(t)) == key);
-
-    if exists_by_id || exists_by_key {
+    if templates.iter().any(|t| t.name == template.name) {
         return Ok(());
     }
 
-    let mut new_template = template;
-    new_template.is_active = false;
+    template.id = Uuid::new_v4().to_string();
+    template.is_active = false;
 
-    templates.push(new_template);
-
+    templates.push(template);
     save_templates(&app_dir, &templates)
 }

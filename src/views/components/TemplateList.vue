@@ -139,24 +139,9 @@ onMounted(async () => {
   await loadDefaultTemplates()
 })
 
-const getFirstMissionCode = (template: Template) => {
-  const g = template.groups?.[0]
-  if (!g) return null
-  const step = g.steps?.find((s:any) => s.type === 'StartMission')
-  return step?.mission_code ?? null
-}
-
 const availableDefaultTemplates = computed(() => {
   return defaultTemplates.value.filter(dt => {
-    const dtCode = getFirstMissionCode(dt)
-    const exists = templates.value.some(t => {
-      const tCode = getFirstMissionCode(t)
-      return (
-        t.name === dt.name &&
-        tCode === dtCode
-      )
-    })
-    return !exists
+    return !templates.value.some(t => t.name === dt.name)
   })
 })
 const filteredDefaultTemplates = computed(() =>

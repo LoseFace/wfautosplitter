@@ -286,7 +286,9 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 5px 2px rgba(0, 0, 0, 0.5);
   border-radius: 10px;
   width: 80vw;
-  height: 80vh;
+  height: max-content;
+  max-width: max-content;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
   padding: 10px;
@@ -299,6 +301,7 @@ onBeforeUnmount(() => {
 }
 
 .changelog-text {
+  padding: 0 10px;
   flex: 1;
   overflow-y: auto;
   white-space: pre-wrap;
