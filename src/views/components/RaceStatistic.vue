@@ -19,7 +19,6 @@ import {
 import imgZoom from '../../imgs/zoom.png'
 import imgToLeft from '../../imgs/toLeft.png'
 import imgToRight from '../../imgs/toRight.png'
-import imgGarbage from '../../imgs/garbage.png'
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip)
 
@@ -83,7 +82,114 @@ const emit = defineEmits<{
 
 const runs = ref<Run[]>([])
 const loading = ref(false)
-const pendingDeleteId = ref<number | null>(null)
+
+const deletionMode = ref(false)
+const selectedRunIds = ref<Set<number>>(new Set())
+const rangeFrom = ref('')
+const rangeTo = ref('')
+
+const isDeleting = ref(false)
+
+const confirmDialog = ref<{ visible: boolean; label: string; ids: number[] }>({
+  visible: false,
+  label: '',
+  ids: [],
+})
+
+function askBatchDelete(label: string, ids: number[]) {
+  if (isDeleting.value || ids.length === 0) return
+  confirmDialog.value = { visible: true, label, ids }
+}
+
+function cancelConfirm() {
+  if (isDeleting.value) return
+  confirmDialog.value.visible = false
+}
+
+async function confirmBatchDelete() {
+  const ids = confirmDialog.value.ids
+  await deleteBatch(ids)
+}
+
+async function toggleDeletionMode() {
+  if (isDeleting.value) return
+  deletionMode.value = !deletionMode.value
+  if (!deletionMode.value) {
+    selectedRunIds.value = new Set()
+    rangeFrom.value = ''
+    rangeTo.value = ''
+  }
+}
+
+function toggleSelectRun(id: number) {
+  if (isDeleting.value) return
+  const s = new Set(selectedRunIds.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  selectedRunIds.value = s
+}
+
+const failureRuns = computed(() => runs.value.filter(r => !r.success))
+
+const rangeFilteredRuns = computed(() => {
+  if (!rangeFrom.value && !rangeTo.value) return []
+  const from = rangeFrom.value ? new Date(rangeFrom.value).getTime() / 1000 : 0
+  const to = rangeTo.value ? new Date(rangeTo.value).getTime() / 1000 : Infinity
+  return runs.value.filter(r => r.created_at >= from && r.created_at <= to)
+})
+
+async function deleteBatch(idsToDelete: number[]) {
+  if (isDeleting.value || idsToDelete.length === 0) return
+  isDeleting.value = true
+  try {
+    const idsSet = new Set(idsToDelete)
+    const runsToDelete = runs.value.filter(r => idsSet.has(r.id))
+    const failCount = runsToDelete.filter(r => !r.success).length
+
+    await Promise.all(idsToDelete.map(id => invoke('delete_run', { runId: id })))
+
+    runs.value = runs.value.filter(r => !idsSet.has(r.id))
+
+    if (failCount > 0) {
+      localAbortCount.value = Math.max(0, localAbortCount.value - failCount)
+      await tauriEmit('abort-decremented', {})
+    }
+
+    confirmDialog.value.visible = false
+    selectedRunIds.value = new Set()
+    rangeFrom.value = ''
+    rangeTo.value = ''
+
+    if (runs.value.length === 0) {
+      deletionMode.value = false
+      emit('deleted')
+      emit('close')
+    } else {
+      deletionMode.value = false
+      emit('deleted')
+    }
+  } catch (e) {
+    console.error(e)
+  } finally {
+    isDeleting.value = false
+  }
+}
+
+async function deleteSelected() {
+  askBatchDelete(t('delete_selected') + ` (${selectedRunIds.value.size})`, [...selectedRunIds.value])
+}
+
+async function deleteFailures() {
+  askBatchDelete(t('delete_failed') + ` (${failureRuns.value.length})`, failureRuns.value.map(r => r.id))
+}
+
+async function deleteInRange() {
+  askBatchDelete(t('delete') + ` (${rangeFilteredRuns.value.length})`, rangeFilteredRuns.value.map(r => r.id))
+}
+
+async function deleteAll() {
+  askBatchDelete(t('delete_all') + ` (${runs.value.length})`, runs.value.map(r => r.id))
+}
 
 type SortDir = 'asc' | 'desc'
 
@@ -448,9 +554,14 @@ async function loadRuns() {
   }
 }
 
+function onWindowResize() { chartWidth.value = window.innerWidth }
+
 onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown)
+  window.addEventListener('resize', onWindowResize)
+
   loadRuns()
+  
   unlistenRunSaved = await listen<number>('run-saved', async () => {
     await loadRuns()
     emit('deleted')
@@ -467,37 +578,6 @@ onMounted(async () => {
     } catch {}
   })
 })
-
-function askDelete(id: number) {
-  pendingDeleteId.value = id
-}
-
-function cancelDelete() {
-  pendingDeleteId.value = null
-}
-
-async function confirmDelete(id: number) {
-  try {
-    const runToDelete = runs.value.find(r => r.id === id)
-    await invoke('delete_run', { runId: id })
-    runs.value = runs.value.filter(r => r.id !== id)
-    pendingDeleteId.value = null
-
-    if (runToDelete && !runToDelete.success) {
-      localAbortCount.value = Math.max(0, localAbortCount.value - 1)
-      await tauriEmit('abort-decremented', {})
-    }
-
-    if (runs.value.length === 0) {
-      emit('deleted')
-      emit('close')
-    } else {
-      emit('deleted')
-    }
-  } catch (e) {
-    console.error(e)
-  }
-}
 
 function formatRunTime(sec: number): string {
   const totalMs  = Math.round(sec * 1000)
@@ -580,7 +660,26 @@ function getCssVar(name: string): string {
 const text = getCssVar('--text-color')
 
 const chartHeight = ref(247)
+const chartWidth = ref(window.innerWidth)
+
 const yTicksLimit = computed(() => Math.max(2, Math.floor(chartHeight.value / 20)))
+
+const pointStep = computed(() => {
+  const n = visibleChartRuns.value.length
+  if (n <= 1) return 1
+  const pxPerLabel = (chartWidth.value * 0.99) / n
+  if (pxPerLabel >= 20) return 1
+  if (pxPerLabel >= 10) return 2
+  if (pxPerLabel >= 5)  return 4
+  if (pxPerLabel >= 2)  return 10
+  return Math.ceil(20 / Math.max(pxPerLabel, 0.5))
+})
+
+const sampledChartRuns = computed(() => {
+  const step = pointStep.value
+  if (step <= 1) return visibleChartRuns.value
+  return visibleChartRuns.value.filter((_, i) => i % step === 0)
+})
 
 let segmentTooltip: {
   datasetIndex: number
@@ -629,7 +728,7 @@ const segmentTooltipPlugin: Plugin<'line'> = {
       return
     }
 
-    const run = visibleChartRuns.value[closestRunIndex]
+    const run = sampledChartRuns.value[closestRunIndex]
     if (!run) return
 
     const sorted = [...run.splits].sort((a, b) => a.split_index - b.split_index)
@@ -754,34 +853,34 @@ function onResizerMouseDown(e: MouseEvent) {
 }
 
 function buildChartData() {
-  const labels = visibleChartRuns.value.map(r => {
+  const labels = sampledChartRuns.value.map(r => {
     const globalIndex = chartRuns.value.findIndex(cr => cr.id === r.id)
     return `${globalIndex + 1}`
   })
 
   const splitIndexes = new Set<number>()
-  visibleChartRuns.value.forEach(run => {
+  sampledChartRuns.value.forEach(run => {
     run.splits.forEach(s => {
       if (s.split_index !== 0) splitIndexes.add(s.split_index)
     })
   })
 
   const datasets: any[] = []
-  const totalData = visibleChartRuns.value.map(r => r.success ? r.total_time : null)
+  const totalData = sampledChartRuns.value.map(r => r.success ? r.total_time : null)
   const globalMinTime = Math.min(
     ...chartRuns.value
       .filter(r => r.success)
       .map(r => r.total_time)
   )
   const maxSplitIndex = Math.max(
-    ...visibleChartRuns.value
+    ...sampledChartRuns.value
       .filter(r => r.success)
       .flatMap(r => r.splits)
       .map(s => s.split_index),
     -Infinity
   )
 
-  const lastSplitName = visibleChartRuns.value
+  const lastSplitName = sampledChartRuns.value
     .filter(r => r.success)
     .flatMap(r => r.splits)
     .sort((a, b) => b.split_index - a.split_index)[0]?.split_name
@@ -801,10 +900,10 @@ function buildChartData() {
     if (splitIndex === maxSplitIndex) return
 
     const splitName =
-      visibleChartRuns.value.find(r => r.splits.find(s => s.split_index === splitIndex))
+      sampledChartRuns.value.find(r => r.splits.find(s => s.split_index === splitIndex))
         ?.splits.find(s => s.split_index === splitIndex)?.split_name || `Split ${splitIndex}`
 
-    const splitData = visibleChartRuns.value.map(run => {
+    const splitData = sampledChartRuns.value.map(run => {
       const split = run.splits.find(s => s.split_index === splitIndex)
       return split ? split.split_time : null
     })
@@ -837,7 +936,7 @@ function buildChartData() {
 }
 
 function buildChart() {
-  if (!chartCanvas.value || visibleChartRuns.value.length === 0) return
+  if (!chartCanvas.value || sampledChartRuns.value.length === 0) return
 
   if (chartInstance) {
     const { labels, datasets } = buildChartData()
@@ -864,6 +963,9 @@ function buildChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
+          filter(item) {
+            return item.dataIndex % pointStep.value === 0
+          },
           titleAlign: 'center',
           displayColors: false,
           callbacks: {
@@ -895,12 +997,20 @@ function buildChart() {
   })
 }
 
-watch(visibleChartRuns, async () => {
+watch(deletionMode, (val) => {
+  if (!val) nextTick(() => buildChart())
+})
+
+watch(sampledChartRuns, async () => {
   await nextTick()
   buildChart()
 })
 
 watch(yTicksLimit, () => {
+  buildChart()
+})
+
+watch(pointStep, () => {
   buildChart()
 })
 
@@ -910,6 +1020,7 @@ onUnmounted(() => {
     chartInstance.destroy()
     chartInstance = null
   }
+  window.removeEventListener('resize', onWindowResize)
 })
 </script>
 
@@ -917,20 +1028,21 @@ onUnmounted(() => {
   <div class="race-statistic">
     <div class="template-title" v-if="summary.template_name && runs.length >= 2">
       <span>{{ summary.template_name }}</span>
-      <span v-if="runs.some(r => r.success) && getSumOfBest(runs) !== null">{{ $t('sum_of_best') }}: {{ formatRunTime(getSumOfBest(runs)!) }}</span>
-      <span>{{ $t('failures') }}: {{ localAbortCount }}</span>
+      <span v-if="!deletionMode && runs.some(r => r.success) && getSumOfBest(runs) !== null">{{ $t('sum_of_best') }}: {{ formatRunTime(getSumOfBest(runs)!) }}</span>
+      <span v-if="!deletionMode">{{ $t('failures') }}: {{ localAbortCount }}</span>
     </div>
 
     <div
       class="chart-container"
       v-if="runs.length >= 2"
+      v-show="!deletionMode"
       :style="{ height: chartHeight + 'px' }"
       @wheel.prevent="onChartWheel"
     >
       <canvas ref="chartCanvas"></canvas>
     </div>
 
-    <div class="chart-controls" v-if="chartRuns.length > CHART_MIN_VISIBLE">
+    <div class="chart-controls" v-if="chartRuns.length > CHART_MIN_VISIBLE" v-show="!deletionMode">
       <div class="chart-control-row">
         <img :src="imgZoom" width="15px" height="15px">
         <input
@@ -957,8 +1069,33 @@ onUnmounted(() => {
       class="chart-resizer"
       @mousedown="onResizerMouseDown"
       v-if="runs.length >= 2"
+      v-show="!deletionMode"
     >
       <span class="chart-resizer-dots">• • •</span>
+    </div>
+
+    <div v-show="deletionMode" class="deletion-container">
+      <div class="deletion-range">
+        <div class="deletion-range-desc">{{ $t('delete_in_range') }}:</div>
+        <div class="deletion-range-from">{{ $t('from') }}
+          <input type="datetime-local" v-model="rangeFrom">
+        </div>
+        <div class="deletion-range-to">{{ $t('to') }}
+          <input type="datetime-local" v-model="rangeTo">
+        </div>
+        <button class="deletion-range-button" :disabled="isDeleting || rangeFilteredRuns.length === 0" @click="deleteInRange">{{$t('delete')}} ({{ rangeFilteredRuns.length }})</button>
+      </div>
+      <div class="deletion-variants">
+        <div class="deleting-all">
+          <button :disabled="isDeleting" @click="deleteAll">{{ $t('delete_all') }} ({{ runs.length }})</button>
+        </div>
+        <div class="deleting-failures">
+          <button :disabled="isDeleting || failureRuns.length === 0" @click="deleteFailures">{{ $t('delete_failed') }} ({{ failureRuns.length }})</button>
+        </div>
+        <div class="deleting-selected">
+          <button :disabled="isDeleting || selectedRunIds.size === 0" @click="deleteSelected">{{ $t('delete_selected') }} ({{ selectedRunIds.size }})</button>
+        </div>
+      </div>
     </div>
 
     <div class="race-menu">
@@ -998,6 +1135,9 @@ onUnmounted(() => {
           <span class="checkmark"></span>
         </label>
       </div>
+      <div class="deletion-records">
+        <button :disabled="isDeleting" @click="toggleDeletionMode">{{ deletionMode ? $t('cancel') : $t('delete_records') }}</button>
+      </div>
     </div>
 
     <div class="history-list">
@@ -1024,7 +1164,7 @@ onUnmounted(() => {
                   <template v-for="block in group.groupedSplitColumns" :key="'grp-' + block.group_index">
                     <template v-for="(col, idx) in block.cols" :key="col.index">
                       <th
-                        v-if="showSegments && !(block.group_index === 0 && idx === 0) && !(idx === 0)"
+                        v-if="showSegments && !(block.group_index === 0 && idx === 0) && !(idx === 1)"
                         class="th-segment sortable col-border-right"
                         :class="{ 'col-active': group.activeSortCol === 'seg:' + block.cols[idx-1].index + ':' + col.index }"
                         @click="toggleTableSort(group.key, 'seg:' + block.cols[idx-1].index + ':' + col.index)"
@@ -1045,23 +1185,16 @@ onUnmounted(() => {
                       {{ block.cols[0].name }}
                     </th>
                   </template>
-                  <th class="th-del"></th>
+                  <th v-if="deletionMode" class="th-checkbox"></th>
                 </tr>
               </thead>
               <tbody>
                 <template v-for="row in group.processedRows" :key="row.run.id">
-                  <tr v-if="pendingDeleteId === row.run.id" class="tr-confirm-delete">
-                    <td class="td-date col-border-right">
-                      <div class="rtime">{{ formatTimeOfDay(row.run.created_at) }}</div>
-                      <div class="rdate">{{ formatDate(row.run.created_at) }}</div>
-                    </td>
-                    <td :colspan="9999" class="td-confirm-delete">
-                      <span class="confirm-delete-text">{{ $t('delete_record') }}</span>
-                      <button class="confirm-deletion-record" @click="confirmDelete(row.run.id)">{{ $t('delete') }}</button>
-                      <button class="cancel-deletion-record" @click="cancelDelete()">{{ $t('cancel') }}</button>
-                    </td>
-                  </tr>
-                  <tr v-else class="tr-splits" :class="{ 'tr-failed': !row.run.success }">
+                  <tr
+                    class="tr-splits"
+                    :class="{ 'tr-failed': !row.run.success, 'tr-selected': deletionMode && selectedRunIds.has(row.run.id) }"
+                    @click="deletionMode && toggleSelectRun(row.run.id)"
+                  >
                     <td class="td-date col-border-right" :class="{ 'col-active-cell': group.activeSortCol === 'date' }">
                       <div class="rtime">{{ formatTimeOfDay(row.run.created_at) }}</div>
                       <div class="rdate">{{ formatDate(row.run.created_at) }}</div>
@@ -1069,7 +1202,7 @@ onUnmounted(() => {
                     <template v-for="block in group.groupedSplitColumns" :key="'grp-' + block.group_index">
                       <template v-for="(col, idx) in block.cols" :key="col.index">
                         <td
-                          v-if="showSegments && !(block.group_index === 0 && idx === 0) && !(idx === 0)"
+                          v-if="showSegments && !(block.group_index === 0 && idx === 0) && !(idx === 1)"
                           class="td-segment col-border-right"
                           :class="{
                             'col-active-cell': group.activeSortCol === 'seg:' + block.cols[idx-1].index + ':' + col.index,
@@ -1105,14 +1238,16 @@ onUnmounted(() => {
                         <span v-else class="no-split">—</span>
                       </td>
                     </template>
-                    <td class="td-del">
-                      <button
-                        class="record-delete"
-                        :disabled="pendingDeleteId === row.run.id"
-                        @click="askDelete(row.run.id)"
-                      >
-                        <img :src="imgGarbage">
-                      </button>
+                    <td v-if="deletionMode" class="td-checkbox">
+                      <label class="custom-checkbox" @click.stop>
+                        <input
+                          type="checkbox"
+                          :checked="selectedRunIds.has(row.run.id)"
+                          @change="toggleSelectRun(row.run.id)"
+                          @click.stop
+                        />
+                        <span class="checkmark" @click.stop></span>
+                      </label>
                     </td>
                   </tr>
                 </template>
@@ -1122,6 +1257,28 @@ onUnmounted(() => {
         </div>
       </template>
     </div>
+
+    <Transition name="confirm-fade">
+      <div
+        v-if="confirmDialog.visible"
+        class="confirm-overlay"
+        @click.self="cancelConfirm"
+      >
+        <div class="confirm-dialog">
+          <p class="confirm-name">{{ summary.template_name }}</p>
+          <p class="confirm-text">{{ confirmDialog.label }} {{ $t('records') }}?</p>
+          <div class="confirm-actions">
+            <button class="button button--danger" :disabled="isDeleting" @click="confirmBatchDelete">
+              <template v-if="isDeleting">{{ $t('in_progress') }}...</template>
+              <template v-else>{{ $t('delete') }}</template>
+            </button>
+            <button v-show="!isDeleting" class="button" @click="cancelConfirm">
+              {{ $t('cancel') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -1152,11 +1309,20 @@ onUnmounted(() => {
   justify-self: center;
 }
 
+.deletion-records{
+  width: 100%;
+  display: flex;
+  justify-content: end;
+  padding-right: 10px;
+}
+.deletion-records > button{
+  height: 100%;
+}
+
 .template-title {
   display: flex;
   flex-direction: row;
-  margin-bottom: -15px;
-  margin-top: 5px;
+  margin: 5px 5px -10px 5px;
   align-self: center;
   gap: 50px;
 }
@@ -1216,14 +1382,9 @@ onUnmounted(() => {
   padding: 10px;
 }
 
-.sequence-block {
-  border-bottom: 2px solid rgba(255, 0, 0, 0.5);
-  /* width: max-content; */
-  margin-bottom: 4px;
-}
-
 .history-table-wrap {
   min-width: max-content;
+  border-bottom: 2px solid rgba(255, 0, 0, 0.5);
 }
 
 .history-table {
@@ -1260,19 +1421,13 @@ onUnmounted(() => {
   border-right: 1px solid rgba(127,127,127,0.5);
 }
 
-.th-del{
-  background: linear-gradient(90deg, var(--card-bg) 50%, var(--bg-color) 100%) !important;
-}
-
 .col-active {
   background: var(--card-bg);
 }
 .col-active-cell {
   background: var(--card-bg);
 }
-.tr-splits:has(> .td-del:hover) .col-active-cell {
-  background: transparent;
-}
+
 
 .sortable {
   cursor: pointer;
@@ -1290,21 +1445,23 @@ onUnmounted(() => {
   border-bottom: 1px solid rgba(127,127,127,0.5);
 }
 
-.tr-splits td,
-.tr-confirm-delete td {
+.tr-splits td{
   padding: 4px;
   text-align: center;
   vertical-align: middle;
   white-space: nowrap;
 }
-.tr-confirm-delete .td-confirm-delete {
-  text-align: end;
-}
 .tr-splits:hover {
   background-color: var(--card-bg);
 }
-.tr-splits:has(> .td-del:hover) {
-  background-color: rgba(255, 0, 0, 0.2) !important;
+.tr-selected td {
+  background: rgba(255, 80, 80, 0.15) !important;
+}
+.tr-splits:has(.td-checkbox) {
+  cursor: pointer;
+}
+.tr-splits:has(.td-checkbox):hover td {
+  background-color: rgba(255, 80, 80, 0.25) !important;
 }
 
 .rdate {
@@ -1321,34 +1478,59 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.td-del {
-  padding: 0 !important;
-  width: 36px;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.record-delete {
-  padding: 8px 3px 7px 2px;
-  height: 100%;
-  background-color: transparent !important;
-}
-.record-delete > img {
-  width: 30px;
-  height: 30px;
-}
-
-.td-confirm-delete > * {
-  margin-right: 10px;
-}
-.confirm-deletion-record,
-.cancel-deletion-record {
-  height: 30px;
-}
 .checkbox-disabled {
   opacity: 0.4;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.deletion-container{
+  margin-top: 20px;
+  box-shadow: 3px 3px 0 0 rgba(0,0,0,0.5), 3px -3px 0 0 rgba(0,0,0,0.5);
+}
+.deletion-container,
+.deletion-container > div{
+  width: 100%;
+  min-height: 160px;
+  display: flex;
+  flex-direction: row;
+}
+.deletion-container > div{
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.deletion-range{
+  box-shadow: 3px 0px 0 0 rgba(0,0,0,0.5);
+}
+.deletion-range-from{
+  margin-top: 10px;
+}
+.deletion-range-to{
+  margin: 5px 0 10px 0;
+}
+.deletion-range-button{
+  height: 30px;
+  padding: 0 10px;
+}
+.deletion-variants{
+  gap: 20px;
+}
+.deleting-all > button,
+.deleting-failures > button,
+.deleting-selected > button{
+  height: 30px;
+  padding: 0px 10px;
+}
+.th-checkbox{
+  background: linear-gradient(90deg, var(--card-bg) 20%, var(--bg-color) 100%) !important;
+}
+.th-checkbox,
+.td-checkbox {
+  width: 36px;
+  text-align: center;
+  vertical-align: middle;
+  padding: 4px;
 }
 
 .th-group-total,
@@ -1358,5 +1540,52 @@ onUnmounted(() => {
 }
 .td-group-total{
   color: var(--text-group-color);
+}
+.confirm-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.confirm-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  padding: 10px;
+  background: var(--stngs-bg-color);
+  box-shadow: 0 0 100px 50px rgba(0, 0, 0, 0.7);
+}
+
+.confirm-text,
+.confirm-name {
+  margin: 0;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  margin-top: 6px;
+}
+
+.confirm-actions > button {
+  height: 30px;
+}
+
+.confirm-fade-enter-active,
+.confirm-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.confirm-fade-enter-from,
+.confirm-fade-leave-to {
+  opacity: 0;
 }
 </style>

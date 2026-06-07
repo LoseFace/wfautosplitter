@@ -116,11 +116,23 @@ input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
 }
+input[type="datetime-local"]{
+  width: 200px;
+  height: 30px;
+  background-color: var(--btn-bg-color);
+  color: var(--text-color);
+  padding: 0 3px;
+}
+input[type="datetime-local"]:focus{
+  outline: none;
+  box-shadow: 0px -2px 0px -1px var(--chbx-border-color) inset;
+}
 button:hover, select:hover{
   background-color: var(--btn-bg-hover-color);
 }
 button:disabled, select:disabled{
-  background-color: var(--btn-bg-color);
+  opacity: 0.5;
+  cursor: default !important;
 }
 select{
   text-align: center;

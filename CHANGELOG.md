@@ -1,1 +1,2 @@
-- Adding a template from the default list now creates a new template with a unique ID.
+- To optimize the graph, some data points are now hidden when zoomed out.
+- Added a more comfortable way to delete run records.
