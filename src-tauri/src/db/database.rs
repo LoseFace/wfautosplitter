@@ -11,6 +11,7 @@ pub fn init_db() -> Connection {
     conn.execute_batch(schema).expect("failed to apply schema");
 
     let _ = conn.execute_batch("ALTER TABLE splits ADD COLUMN group_index INTEGER NOT NULL DEFAULT 0;");
+    let _ = conn.execute_batch("ALTER TABLE runs ADD COLUMN visibility INTEGER NOT NULL DEFAULT 1;");
 
     conn
 }

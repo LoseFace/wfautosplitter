@@ -16,6 +16,8 @@ export interface AppSettings {
   }
 
   overlay: {
+    x:number
+    y:number
     show: boolean
     pos_x: number
     pos_y: number

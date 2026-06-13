@@ -89,10 +89,10 @@ async function loadLastRuns(templateId: string) {
     return
   }
   try {
-    const runs = await invoke<Array<{ id: number, total_time: number, success: boolean }>>(
+    const runs = await invoke<Array<{ id: number, total_time: number, success: boolean, visibility: number }>>(
       'get_runs', { templateId }
     )
-    lastRuns.value = runs.filter(r => r.success).slice(0, count)
+    lastRuns.value = runs.filter(r => r.success && r.visibility !== 0).slice(0, count)
   } catch {
     lastRuns.value = []
   }
@@ -604,6 +604,15 @@ onMounted(async () => {
       const match = summaries.find(s => s.template_id === template_id)
       abortCount.value = match?.abort_count ?? 0
     } catch {}
+  })
+
+  await listen('run-visibility-changed', async () => {
+    const template_id = overlayState.value.template_id
+    if (!template_id) return
+    await loadBestRun(template_id)
+    await loadGoldSplits(template_id)
+    await loadBestSegments(template_id)
+    await loadLastRuns(template_id)
   })
 
   await listen<{ predicted_time: number | null; completed_rounds: number }>(

@@ -1,2 +1,1 @@
-- To optimize the graph, some data points are now hidden when zoomed out.
-- Added a more comfortable way to delete run records.
+- Added a feature to hide entries from the history so they aren't included in the statistics.

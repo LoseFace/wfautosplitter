@@ -269,6 +269,7 @@ impl OverlayBridge {
                                     total_time,
                                     splits: completed_splits,
                                     success: false,
+                                    visibility: 1,
                                 };
 
                                 let mut conn = init_db();
@@ -324,6 +325,7 @@ impl OverlayBridge {
                             total_time,
                             splits,
                             success: true,
+                            visibility: 1,
                         };
 
                         let mut conn = init_db();

@@ -28,6 +28,8 @@
   "delete_records":"Delete records",
   "records":"records",
   "in_progress":"In progress",
+  "show":"Show",
+  "hide":"Hide",
   "date":"Date",
   "hours":"h",
   "minutes":"m",

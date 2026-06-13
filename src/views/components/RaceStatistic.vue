@@ -19,6 +19,7 @@ import {
 import imgZoom from '../../imgs/zoom.png'
 import imgToLeft from '../../imgs/toLeft.png'
 import imgToRight from '../../imgs/toRight.png'
+import imgVisibility from '../../imgs/visibility.png'
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip)
 
@@ -63,6 +64,7 @@ interface Run {
   created_at: number
   splits: Split[]
   success: boolean
+  visibility: number
 }
 
 onUnmounted(() => {
@@ -554,6 +556,16 @@ async function loadRuns() {
   }
 }
 
+async function toggleVisibility(run: Run) {
+  const newVisibility = run.visibility === 1 ? 0 : 1
+  try {
+    await invoke('set_run_visibility', { runId: run.id, visibility: newVisibility })
+    run.visibility = newVisibility
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 function onWindowResize() { chartWidth.value = window.innerWidth }
 
 onMounted(async () => {
@@ -620,7 +632,7 @@ function getSegmentTime(run: Run, fromIndex: number, toIndex: number): number | 
 }
 
 const chartRuns = computed(() =>
-  [...runs.value].sort((a, b) => a.created_at - b.created_at)
+  [...runs.value].filter(r => r.visibility !== 0).sort((a, b) => a.created_at - b.created_at)
 )
 
 const CHART_MIN_VISIBLE = 15
@@ -1028,8 +1040,8 @@ onUnmounted(() => {
   <div class="race-statistic">
     <div class="template-title" v-if="summary.template_name && runs.length >= 2">
       <span>{{ summary.template_name }}</span>
-      <span v-if="!deletionMode && runs.some(r => r.success) && getSumOfBest(runs) !== null">{{ $t('sum_of_best') }}: {{ formatRunTime(getSumOfBest(runs)!) }}</span>
-      <span v-if="!deletionMode">{{ $t('failures') }}: {{ localAbortCount }}</span>
+      <span v-if="!deletionMode && runs.some(r => r.success && r.visibility !== 0) && getSumOfBest(runs.filter(r => r.visibility !== 0)) !== null">{{ $t('sum_of_best') }}: {{ formatRunTime(getSumOfBest(runs.filter(r => r.visibility !== 0))!) }}</span>
+      <span v-if="!deletionMode && localAbortCount > 0">{{ $t('failures') }}: {{ localAbortCount }}</span>
     </div>
 
     <div
@@ -1186,13 +1198,14 @@ onUnmounted(() => {
                     </th>
                   </template>
                   <th v-if="deletionMode" class="th-checkbox"></th>
+                  <th v-if="!deletionMode" class="th-visibility"></th>
                 </tr>
               </thead>
               <tbody>
                 <template v-for="row in group.processedRows" :key="row.run.id">
                   <tr
                     class="tr-splits"
-                    :class="{ 'tr-failed': !row.run.success, 'tr-selected': deletionMode && selectedRunIds.has(row.run.id) }"
+                    :class="{ 'tr-failed': !row.run.success, 'tr-selected': deletionMode && selectedRunIds.has(row.run.id), 'tr-hidden': row.run.visibility === 0 }"
                     @click="deletionMode && toggleSelectRun(row.run.id)"
                   >
                     <td class="td-date col-border-right" :class="{ 'col-active-cell': group.activeSortCol === 'date' }">
@@ -1248,6 +1261,11 @@ onUnmounted(() => {
                         />
                         <span class="checkmark" @click.stop></span>
                       </label>
+                    </td>
+                    <td v-if="!deletionMode" class="td-visibility" :title="row.run.visibility === 0 ? $t('show') : $t('hide')" @click.stop="toggleVisibility(row.run)">
+                      <span class="visibility-icon" :class="{ 'visibility-icon--hidden': row.run.visibility === 0 }">
+                        <img :src="imgVisibility"/>
+                      </span>
                     </td>
                   </tr>
                 </template>
@@ -1587,5 +1605,53 @@ onUnmounted(() => {
 .confirm-fade-enter-from,
 .confirm-fade-leave-to {
   opacity: 0;
+}
+
+.th-visibility,
+.td-visibility {
+  width: 35px;
+}
+
+.td-visibility {
+  cursor: pointer;
+}
+
+.visibility-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+}
+.visibility-icon img{
+  width: 25px;
+  height: 25px;
+}
+
+.visibility-icon--hidden img {
+  opacity: 0.4;
+}
+
+.visibility-icon--hidden::before,
+.visibility-icon--hidden::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 1.5px;
+  background: currentColor;
+  transform-origin: center;
+}
+.visibility-icon--hidden::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.visibility-icon--hidden::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.tr-hidden td {
+  opacity: 0.2;
 }
 </style>

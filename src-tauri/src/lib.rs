@@ -1,8 +1,4 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
 
 mod db;
 mod hotkeys;
@@ -76,6 +72,13 @@ fn rename_template_runs(template_id: String, new_name: String) -> Result<(), Str
     runs::rename_template_runs(&mut conn, &template_id, &new_name).map_err(|e| e.to_string())
 }
 #[tauri::command]
+fn set_run_visibility(app: tauri::AppHandle, run_id: i64, visibility: i64) -> Result<bool, String> {
+    let mut conn = init_db();
+    let result = runs::set_run_visibility(&mut conn, run_id, visibility).map_err(|e| e.to_string())?;
+    let _ = app.emit("run-visibility-changed", ());
+    Ok(result)
+}
+#[tauri::command]
 fn force_run_reset(app: tauri::AppHandle) {
     let _ = app.emit("force-run-reset", ());
 }
@@ -113,6 +116,8 @@ pub struct InterfaceSettings {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct OverlaySettings {
     show: bool,
+    x:i32,
+    y:i32,
     pos_x: i32,
     pos_y: i32,
     overlay_transparent: i32,
@@ -155,6 +160,8 @@ fn default_settings() -> AppSettings {
         },
         overlay: OverlaySettings {
             show: false,
+            x: 300,
+            y: 20,
             pos_x: 100,
             pos_y: 100,
             overlay_transparent: 50,
@@ -339,7 +346,6 @@ pub fn run() {
         })
         .manage(HotkeyStore { table })
         .invoke_handler(tauri::generate_handler![
-            greet,
             start_log_reading,
             get_settings,
             get_default_settings,
@@ -365,6 +371,7 @@ pub fn run() {
             get_runs_for_chart,
             rename_template_runs,
             force_run_reset,
+            set_run_visibility,
 
             register_shortcut_command,
             unregister_shortcut_command,

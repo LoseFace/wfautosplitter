@@ -18,6 +18,7 @@ pub struct Run {
     pub total_time: f64,
     pub splits: Vec<Split>,
     pub success: bool,
+    pub visibility: i64,
 }
 
 #[derive(Serialize, Clone)]
@@ -60,14 +61,15 @@ pub fn insert_run(conn: &mut Connection, run: Run) -> rusqlite::Result<i64> {
     let tx = conn.transaction()?;
 
     tx.execute(
-        "INSERT INTO runs (template_id, template_name, created_at, total_time, success)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO runs (template_id, template_name, created_at, total_time, success, visibility)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
             &run.template_id,
             &run.template_name,
             run.created_at,
             run.total_time,
             run.success as i64,
+            run.visibility,
         ],
     )?;
 
@@ -107,12 +109,13 @@ pub fn get_runs(
         created_at: i64,
         total_time: f64,
         success: bool,
+        visibility: i64,
     }
 
     let raw_runs: Vec<RawRun> = match template_id {
         Some(t) => {
             let mut stmt = conn.prepare(
-                "SELECT id, template_id, template_name, created_at, total_time, COALESCE(success, 1)
+                "SELECT id, template_id, template_name, created_at, total_time, COALESCE(success, 1), COALESCE(visibility, 1)
                  FROM runs WHERE template_id = ?1 ORDER BY created_at DESC",
             )?;
             let result: rusqlite::Result<Vec<RawRun>> = stmt.query_map(params![t], |row| {
@@ -123,13 +126,14 @@ pub fn get_runs(
                     created_at: row.get(3)?,
                     total_time: row.get(4)?,
                     success: row.get::<_, i64>(5)? != 0,
+                    visibility: row.get::<_, i64>(6)?,
                 })
             })?.collect();
             result?
         }
         None => {
             let mut stmt = conn.prepare(
-                "SELECT id, template_id, template_name, created_at, total_time, COALESCE(success, 1)
+                "SELECT id, template_id, template_name, created_at, total_time, COALESCE(success, 1), COALESCE(visibility, 1)
                  FROM runs ORDER BY created_at DESC",
             )?;
             let result: rusqlite::Result<Vec<RawRun>> = stmt.query_map([], |row| {
@@ -140,6 +144,7 @@ pub fn get_runs(
                     created_at: row.get(3)?,
                     total_time: row.get(4)?,
                     success: row.get::<_, i64>(5)? != 0,
+                    visibility: row.get::<_, i64>(6)?,
                 })
             })?.collect();
             result?
@@ -157,6 +162,7 @@ pub fn get_runs(
             total_time: r.total_time,
             splits,
             success: r.success,
+            visibility: r.visibility,
         });
     }
 
@@ -171,13 +177,15 @@ pub fn get_best_run(conn: &mut Connection, template_id: &str) -> rusqlite::Resul
         created_at: i64,
         total_time: f64,
         success: bool,
+        visibility: i64,
     }
 
     let row = {
         let mut stmt = conn.prepare(
-            "SELECT id, template_id, template_name, created_at, total_time, COALESCE(success, 1)
+            "SELECT id, template_id, template_name, created_at, total_time, COALESCE(success, 1), COALESCE(visibility, 1)
              FROM runs
              WHERE template_id = ?1 AND COALESCE(success, 1) = 1
+             AND COALESCE(visibility, 1) = 1
              ORDER BY total_time ASC LIMIT 1",
         )?;
         let result = stmt.query_row(params![template_id], |r| {
@@ -188,6 +196,7 @@ pub fn get_best_run(conn: &mut Connection, template_id: &str) -> rusqlite::Resul
                 created_at: r.get(3)?,
                 total_time: r.get(4)?,
                 success: r.get::<_, i64>(5)? != 0,
+                visibility: r.get::<_, i64>(6)?,
             })
         }).optional()?;
         result
@@ -203,6 +212,7 @@ pub fn get_best_run(conn: &mut Connection, template_id: &str) -> rusqlite::Resul
         total_time: r.total_time,
         splits,
         success: r.success,
+        visibility: r.visibility,
     }))
 }
 
@@ -214,11 +224,12 @@ pub fn get_run_by_id(conn: &mut Connection, run_id: i64) -> rusqlite::Result<Opt
         created_at: i64,
         total_time: f64,
         success: bool,
+        visibility: i64,
     }
 
     let row = {
         let mut stmt = conn.prepare(
-            "SELECT id, template_id, template_name, created_at, total_time, COALESCE(success, 1)
+            "SELECT id, template_id, template_name, created_at, total_time, COALESCE(success, 1), COALESCE(visibility, 1)
              FROM runs WHERE id = ?1",
         )?;
         let result = stmt.query_row(params![run_id], |r| {
@@ -229,6 +240,7 @@ pub fn get_run_by_id(conn: &mut Connection, run_id: i64) -> rusqlite::Result<Opt
                 created_at: r.get(3)?,
                 total_time: r.get(4)?,
                 success: r.get::<_, i64>(5)? != 0,
+                visibility: r.get::<_, i64>(6)?,
             })
         }).optional()?;
         result
@@ -244,6 +256,7 @@ pub fn get_run_by_id(conn: &mut Connection, run_id: i64) -> rusqlite::Result<Opt
         total_time: r.total_time,
         splits,
         success: r.success,
+        visibility: r.visibility,
     }))
 }
 
@@ -300,6 +313,7 @@ pub fn get_best_splits(conn: &mut Connection, template_id: &str) -> rusqlite::Re
          FROM splits s
          JOIN runs r ON s.run_id = r.id
          WHERE r.template_id = ?1 AND COALESCE(r.success, 1) = 1
+         AND COALESCE(r.visibility, 1) = 1
          GROUP BY s.split_index",
     )?;
     let result: rusqlite::Result<Vec<Split>> = stmt.query_map(params![template_id], |row| {
@@ -320,6 +334,7 @@ pub fn get_best_segments(conn: &mut Connection, template_id: &str) -> rusqlite::
                 FROM splits s
                 JOIN runs r ON s.run_id = r.id
                 WHERE r.template_id = ?1
+                AND COALESCE(r.visibility, 1) = 1
                 ORDER BY s.run_id, s.split_index",
         )?;
         let result: rusqlite::Result<Vec<(i64, i64, String, f64, i64)>> =
@@ -460,7 +475,7 @@ pub fn get_runs_for_chart(conn: &mut Connection, template_id: &str) -> rusqlite:
         let mut stmt = conn.prepare(
             "SELECT id, created_at, total_time
              FROM runs
-             WHERE template_id = ?1 AND COALESCE(success, 1) = 1
+             WHERE template_id = ?1 AND COALESCE(success, 1) = 1 AND COALESCE(visibility, 1) = 1
              ORDER BY created_at ASC",
         )?;
         let result: rusqlite::Result<Vec<RawPoint>> = stmt.query_map(params![template_id], |row| {
@@ -497,4 +512,16 @@ pub fn rename_template_runs(
         params![new_name, template_id],
     )?;
     Ok(())
+}
+
+pub fn set_run_visibility(
+    conn: &mut Connection,
+    run_id: i64,
+    visibility: i64,
+) -> rusqlite::Result<bool> {
+    let affected = conn.execute(
+        "UPDATE runs SET visibility = ?1 WHERE id = ?2",
+        params![visibility, run_id],
+    )?;
+    Ok(affected > 0)
 }

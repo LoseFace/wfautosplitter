@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS runs (
     template_name TEXT NOT NULL,
     total_time REAL NOT NULL,
     created_at INTEGER NOT NULL,
-    success INTEGER NOT NULL DEFAULT 1
+    success INTEGER NOT NULL DEFAULT 1,
+    visibility INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS splits (

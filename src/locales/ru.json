@@ -28,6 +28,8 @@
   "delete_records":"Удалить записи",
   "records":"записи",
   "in_progress":"В обработке",
+  "show":"Показать",
+  "hide":"Скрыть",
   "date":"Дата",
   "hours":"ч",
   "minutes":"м",
