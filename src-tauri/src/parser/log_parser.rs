@@ -98,7 +98,7 @@ impl LogParser {
     fn mission_code_word_match(line: &str, code: &str) -> bool {
         let Some(pos) = line.find(code) else { return false };
         let after = &line[pos + code.len()..];
-        !after.starts_with(|c: char| c.is_ascii_alphanumeric() || c == '_')
+        !after.starts_with(|c: char| c.is_ascii_alphanumeric())
     }
 
     fn matches_trigger_seq(

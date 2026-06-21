@@ -2374,7 +2374,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: TargetDestroyTransmission",
+            "trigger_keyword": "TargetDestroyTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -2413,7 +2413,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DTSCataRemovedLotus",
+            "trigger_keyword": "DTSCataRemovedLotus) starting",
             "split_name": "Biocatalyst destroyed"
           },
           {
@@ -2521,13 +2521,13 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DPumpReached070Lotus",
+            "trigger_keyword": "DPumpReached070Lotus) starting",
             "split_name": "Open pump station"
           },
           {
             "type": "MissionSplit",
             "order": 3,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DPipesDamaged080Lotus",
+            "trigger_keyword": "DPipesDamaged080Lotus) starting",
             "split_name": "Pipes destroyed"
           },
           {
@@ -2539,13 +2539,13 @@
           {
             "type": "MissionSplit",
             "order": 5,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DManicIntroGenLotus||HudRedux.lua: Queuing new transmission: DCloningReachedGenLotus",
+            "trigger_keyword": "DManicIntroGenLotus) starting||DCloningReachedGenLotus) starting",
             "split_name": "Open lab"
           },
           {
             "type": "MissionSplit",
             "order": 6,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DManicKilledGenLotus||HudRedux.lua: Queuing new transmission: DCloningFinishedGenLotus",
+            "trigger_keyword": "DManicKilledGenLotus) starting||DCloningFinishedGenLotus) starting",
             "split_name": "Job is done"
           },
           {
@@ -2692,7 +2692,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: TargetDestroyTransmission",
+            "trigger_keyword": "TargetDestroyTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -2731,7 +2731,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: TargetDestroyTransmission",
+            "trigger_keyword": "TargetDestroyTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -2959,7 +2959,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: TargetDestroyTransmission",
+            "trigger_keyword": "TargetDestroyTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -3514,7 +3514,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: LotusSabotageEndTransmission",
+            "trigger_keyword": "LotusSabotageEndTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -8275,7 +8275,7 @@
           {
             "type": "MissionSplit",
             "order": 6,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DMercMissionSuccess0380Lotus",
+            "trigger_keyword": "DMercMissionSuccess0380Lotus) starting",
             "split_name": "Phase 4"
           },
           {
@@ -8344,7 +8344,7 @@
           {
             "type": "MissionSplit",
             "order": 7,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DMercMissionSuccess0380Lotus",
+            "trigger_keyword": "DMercMissionSuccess0380Lotus) starting",
             "split_name": "Phase 4"
           },
           {
@@ -8581,7 +8581,7 @@
           {
             "type": "MissionSplit",
             "order": 7,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DDefeatTank0800Arthur",
+            "trigger_keyword": "DDefeatTank0800Arthur) starting",
             "split_name": "Defeat Tank"
           },
           {
@@ -8638,7 +8638,7 @@
           {
             "type": "MissionSplit",
             "order": 5,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DDefeatTank0800Arthur",
+            "trigger_keyword": "DDefeatTank0800Arthur) starting",
             "split_name": "Defeat Tank"
           },
           {
@@ -8980,7 +8980,7 @@
           {
             "type": "MissionSplit",
             "order": 3,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: ObjectiveFoundAssassinateTransmission",
+            "trigger_keyword": "ObjectiveFoundAssassinateTransmission) starting",
             "split_name": "Boss defeated"
           },
           {
@@ -9025,19 +9025,19 @@
           {
             "type": "MissionSplit",
             "order": 3,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DRaptorVentDestroyed01Lotus",
+            "trigger_keyword": "DRaptorVentDestroyed01Lotus) starting",
             "split_name": "Vent 1"
           },
           {
             "type": "MissionSplit",
             "order": 4,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DRaptorVentDestroyed02Lotus",
+            "trigger_keyword": "DRaptorVentDestroyed02Lotus) starting",
             "split_name": "Vent 2"
           },
           {
             "type": "MissionSplit",
             "order": 5,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DRaptorVictoryLotus",
+            "trigger_keyword": "DRaptorVictoryLotus) starting",
             "split_name": "Vent 3"
           },
           {
@@ -9139,7 +9139,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: NefInCombatTaunt",
+            "trigger_keyword": "NefInCombatTaunt) starting",
             "split_name": "Entering arena"
           },
           {
@@ -9582,6 +9582,357 @@
     ]
   },
   {
+    "id": "0b19f58a-8bee-4166-b665-757b224afaaa",
+    "name": "Roathe (Dark Refractory) Assassination",
+    "is_active": false,
+    "sequential_mode": false,
+    "exclude_time_between_groups": false,
+    "groups": [
+      {
+        "id": "a09cae26-49bc-4490-8c4f-fcac9efcf04b",
+        "steps": [
+          {
+            "type": "StartMission",
+            "order": 0,
+            "trigger_keyword": "OnStateStarted",
+            "split_name": "Roathe",
+            "mission_code": "location=SolNode256||ThemedSquadOverlay.lua: Lobby::Host_StartMatch: launching level for SolNode256"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 1,
+            "trigger_keyword": "DHellStageEvergreenIntro2230Roathe) starting",
+            "split_name": "Lock broken"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 2,
+            "trigger_keyword": "LotusCinematic0 Play()",
+            "split_name": "Entering arena"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 3,
+            "trigger_keyword": "Uriel Fight Pre-Death",
+            "split_name": "First phase"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 4,
+            "trigger_keyword": "Throne Destruction",
+            "split_name": "Second phase"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 5,
+            "trigger_keyword": "#21 floors completed",
+            "split_name": "Throne destroyed"
+          },
+          {
+            "type": "EndMission",
+            "order": 6,
+            "trigger_keyword": "- IsInTrigger=true=>Created /Lotus/Interface/EndOfMatch.swf",
+            "split_name": "Finish"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "99483e26-3a5d-4da1-97a4-da2c9ced7004",
+    "name": "Kuva Wytch (Uranus Proxima) Assassination",
+    "is_active": false,
+    "sequential_mode": false,
+    "exclude_time_between_groups": false,
+    "groups": [
+      {
+        "id": "f4043c4d-610d-4684-97dd-b7cedd6d2f66",
+        "steps": [
+          {
+            "type": "StartMission",
+            "order": 0,
+            "trigger_keyword": "OnStateStarted||CrewShipMgr - next mission RMI: CrewShipGenericTunnel",
+            "split_name": "Kuva Wytch",
+            "mission_code": "location=CrewBattleNode560||ThemedSquadOverlay.lua: SquadOverlay: RJ GoToMission - CrewBattleNode560"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 1,
+            "trigger_keyword": "AshMissionStageA.lua: Landscape - New State: 3",
+            "split_name": "Asteroid field"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 2,
+            "trigger_keyword": "AS1Space.lua: Landscape - New State: 3",
+            "split_name": "Asteroid collected"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 3,
+            "trigger_keyword": "Enabling spectator mode",
+            "split_name": "Asteroid inspected"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 4,
+            "trigger_keyword": "RailjackBordingParty.lua: Landscape - New State: 3",
+            "split_name": "Boarding party repelled"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 5,
+            "trigger_keyword": "AshMissionStageA.lua: Landscape - New State: 5",
+            "split_name": "Tasks completed"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 6,
+            "trigger_keyword": "AshMissionStageB.lua: Landscape - New State: 3",
+            "split_name": "Entered shattered moon"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 7,
+            "trigger_keyword": "AshMissionStageB.lua: Landscape - New State: 4",
+            "split_name": "Turrets destroyed"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 8,
+            "trigger_keyword": "AshMissionStageB.lua: Landscape - New State: 5",
+            "split_name": "Ice blocks destroyed"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 9,
+            "trigger_keyword": "AshMissionStageC.lua: Enter POI: IceMoon",
+            "split_name": "Entering comet's mine"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 10,
+            "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 2",
+            "split_name": "Door opened"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 11,
+            "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 3",
+            "split_name": "Golden Maws eliminated"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 12,
+            "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 4",
+            "split_name": "Extermination started"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 13,
+            "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 6",
+            "split_name": "Extermination ended"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 14,
+            "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 11",
+            "split_name": "Director killed"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 15,
+            "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 12",
+            "split_name": "Weapon unleashed"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 16,
+            "trigger_keyword": "AshMissionStageEPOI.lua: ModeState = 4",
+            "split_name": "Extermination started"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 17,
+            "trigger_keyword": "AshMissionStageEPOI.lua: ModeState = 6",
+            "split_name": "Extermination ended"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 18,
+            "trigger_keyword": "AshMissionStageEPOI.lua: ModeState = 7",
+            "split_name": "Entering arena"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 19,
+            "trigger_keyword": "AshMissionStageEPOI.lua: ModeState = 8",
+            "split_name": "Vena killed"
+          },
+          {
+            "type": "EndMission",
+            "order": 20,
+            "trigger_keyword": "- IsInTrigger=true=>Created /Lotus/Interface/EndOfMatch.swf",
+            "split_name": "Finish"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "ceb7ed44-290d-40bf-b241-60ba006ba12c",
+    "name": "Scoria's Angel (Uranus Proxima) Assassination",
+    "is_active": false,
+    "sequential_mode": false,
+    "exclude_time_between_groups": false,
+    "groups": [
+      {
+        "id": "34202c9e-fcb4-4c2a-9a42-062cc4bc29fa",
+        "steps": [
+          {
+            "type": "StartMission",
+            "order": 0,
+            "trigger_keyword": "OnStateStarted||CrewShipMgr - next mission RMI: CrewShipGenericTunnel",
+            "split_name": "Scoria's Angel",
+            "mission_code": "location=CrewBattleNode561||ThemedSquadOverlay.lua: SquadOverlay: RJ GoToMission - CrewBattleNode561"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 1,
+            "trigger_keyword": "GarudaMissionStageA.lua: Landscape - New State: 3",
+            "split_name": "Asteroid field"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 2,
+            "trigger_keyword": "GS1Space.lua: Landscape - New State: 2",
+            "split_name": "Approached security tower"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 3,
+            "trigger_keyword": "GarudaMissionStageA.lua: Landscape - New State: 5",
+            "split_name": "Tasks completed"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 4,
+            "trigger_keyword": "GarudaMissionStageB.lua: Landscape - New State: 3",
+            "split_name": "Approached cargo ships"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 5,
+            "trigger_keyword": "Removing SubObjective: CargoTracker",
+            "split_name": "Cargo ship 1"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 6,
+            "trigger_keyword": "Removing SubObjective: CargoTracker",
+            "split_name": "Cargo ship 2"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 7,
+            "trigger_keyword": "GarudaMissionStageC.lua: Landscape - New State: 3",
+            "split_name": "Сloaking disabled"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 8,
+            "trigger_keyword": "GarudaMissionStageC.lua: Landscape - New State: 4",
+            "split_name": "Entering comet shredder"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 9,
+            "trigger_keyword": "GarudaMissionStageCPOI.lua: ModeState = 2",
+            "split_name": "Approached Vena"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 10,
+            "trigger_keyword": "GarudaMissionStageCPOI.lua: ModeState = 4",
+            "split_name": "Lockdown disabled"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 11,
+            "trigger_keyword": "GarudaMissionStageCPOI.lua: ModeState = 5",
+            "split_name": "Entering processing level"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 12,
+            "trigger_keyword": "DGCCaptainEnd0590Vena) starting",
+            "split_name": "Captain defeated"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 13,
+            "trigger_keyword": "GarudaMissionStageCPOI.lua: ModeState = 6",
+            "split_name": "Opposition eliminated"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 14,
+            "trigger_keyword": "GarudaMissionStageCPOI.lua: ModeState = 7",
+            "split_name": "Canisters collected"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 15,
+            "trigger_keyword": "LotusCinematic0 Play()",
+            "split_name": "Ramsleds found"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 16,
+            "trigger_keyword": "GarudaMissionStageEPOI.lua: ModeState = 4",
+            "split_name": "Door opened"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 17,
+            "trigger_keyword": "GarudaMissionStageEPOI.lua: ModeState = 5",
+            "split_name": "Entering arena"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 18,
+            "trigger_keyword": "GarudaMissionStageEPOI.lua: ModeState = 7",
+            "split_name": "Ryoku phase 1"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 19,
+            "trigger_keyword": "GarudaMissionStageEPOI.lua: ModeState = 9",
+            "split_name": "Megacoil launched"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 20,
+            "trigger_keyword": "GarudaMissionStageEPOI.lua: ModeState = 11",
+            "split_name": "Ryoku phase 2"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 21,
+            "trigger_keyword": "GarudaMissionStageEPOI.lua: ModeState = 13",
+            "split_name": "Megacoil charged"
+          },
+          {
+            "type": "EndMission",
+            "order": 22,
+            "trigger_keyword": "- IsInTrigger=true=>Created /Lotus/Interface/EndOfMatch.swf",
+            "split_name": "Finish"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "id": "e6a40e40-36fc-463d-8eaf-d03a846f1afb",
     "name": "Mercury (Planet)",
     "is_active": false,
@@ -10015,7 +10366,7 @@
           {
             "type": "MissionSplit",
             "order": 6,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DMercMissionSuccess0380Lotus",
+            "trigger_keyword": "DMercMissionSuccess0380Lotus) starting",
             "split_name": "Phase 4"
           },
           {
@@ -10609,7 +10960,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DTSCataRemovedLotus",
+            "trigger_keyword": "DTSCataRemovedLotus) starting",
             "split_name": "Biocatalyst destroyed"
           },
           {
@@ -11359,7 +11710,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: TargetDestroyTransmission",
+            "trigger_keyword": "TargetDestroyTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -12259,7 +12610,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: NefInCombatTaunt",
+            "trigger_keyword": "NefInCombatTaunt) starting",
             "split_name": "Entering arena"
           },
           {
@@ -12748,7 +13099,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: TargetDestroyTransmission",
+            "trigger_keyword": "TargetDestroyTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -13279,7 +13630,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: LotusSabotageEndTransmission",
+            "trigger_keyword": "LotusSabotageEndTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -13636,7 +13987,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: TargetDestroyTransmission",
+            "trigger_keyword": "TargetDestroyTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -13708,19 +14059,19 @@
           {
             "type": "MissionSplit",
             "order": 3,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DRaptorVentDestroyed01Lotus",
+            "trigger_keyword": "DRaptorVentDestroyed01Lotus) starting",
             "split_name": "Vent 1"
           },
           {
             "type": "MissionSplit",
             "order": 4,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DRaptorVentDestroyed02Lotus",
+            "trigger_keyword": "DRaptorVentDestroyed02Lotus) starting",
             "split_name": "Vent 2"
           },
           {
             "type": "MissionSplit",
             "order": 5,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DRaptorVictoryLotus",
+            "trigger_keyword": "DRaptorVictoryLotus) starting",
             "split_name": "Vent 3"
           },
           {
@@ -14638,13 +14989,13 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DPumpReached070Lotus",
+            "trigger_keyword": "DPumpReached070Lotus) starting",
             "split_name": "Open pump station"
           },
           {
             "type": "MissionSplit",
             "order": 3,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DPipesDamaged080Lotus",
+            "trigger_keyword": "DPipesDamaged080Lotus) starting",
             "split_name": "Pipes destroyed"
           },
           {
@@ -14656,13 +15007,13 @@
           {
             "type": "MissionSplit",
             "order": 5,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DManicIntroGenLotus||HudRedux.lua: Queuing new transmission: DCloningReachedGenLotus",
+            "trigger_keyword": "DManicIntroGenLotus) starting||DCloningReachedGenLotus) starting",
             "split_name": "Open lab"
           },
           {
             "type": "MissionSplit",
             "order": 6,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DManicKilledGenLotus||HudRedux.lua: Queuing new transmission: DCloningFinishedGenLotus",
+            "trigger_keyword": "DManicKilledGenLotus) starting||DCloningFinishedGenLotus) starting",
             "split_name": "Job is done"
           },
           {
@@ -15301,7 +15652,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: TargetDestroyTransmission",
+            "trigger_keyword": "TargetDestroyTransmission) starting",
             "split_name": "Reactor destroyed"
           },
           {
@@ -18107,7 +18458,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: VaultDoorOpened",
+            "trigger_keyword": "VaultDoorOpened) starting",
             "split_name": "Vault opened"
           },
           {
@@ -18236,7 +18587,7 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBntyFourInterPrTk0920TheBusiness",
+            "trigger_keyword": "DBntyFourInterPrTk0920TheBusiness) starting",
             "split_name": "Phase 1: Shield broken"
           },
           {
@@ -18308,7 +18659,7 @@
           {
             "type": "MissionSplit",
             "order": 14,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBntyFourInterPrTk0890TheBusiness",
+            "trigger_keyword": "DBntyFourInterPrTk0890TheBusiness) starting",
             "split_name": "Phase 3: Shield broken"
           },
           {
@@ -18350,7 +18701,7 @@
           {
             "type": "MissionSplit",
             "order": 21,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBntyFourSatelReal0930TheBusiness",
+            "trigger_keyword": "DBntyFourSatelReal0930TheBusiness) starting",
             "split_name": "Phase 4: Shield broken"
           },
           {
@@ -18413,19 +18764,19 @@
           {
             "type": "MissionSplit",
             "order": 2,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBossIntPOneVentDamage",
+            "trigger_keyword": "DBossIntPOneVentDamage) starting",
             "split_name": "Vent 1"
           },
           {
             "type": "MissionSplit",
             "order": 3,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBossIntPTwoVentDestroy",
+            "trigger_keyword": "DBossIntPTwoVentDestroy) starting",
             "split_name": "Vent 2, 3"
           },
           {
             "type": "MissionSplit",
             "order": 4,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBossIntPThreeStart",
+            "trigger_keyword": "DBossIntPThreeStart) starting",
             "split_name": "Vent 4"
           },
           {
@@ -18512,7 +18863,7 @@
           {
             "type": "MissionSplit",
             "order": 1,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBntyTwoBrief1080LittleDuck",
+            "trigger_keyword": "DBntyTwoBrief1080LittleDuck) starting",
             "split_name": "Trigger appeared"
           },
           {
@@ -18530,13 +18881,13 @@
           {
             "type": "MissionSplit",
             "order": 4,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBntyTwoPassKey0160Eudico",
+            "trigger_keyword": "DBntyTwoPassKey0160Eudico) starting",
             "split_name": "Director 1"
           },
           {
             "type": "MissionSplit",
             "order": 5,
-            "trigger_keyword": "HudRedux.lua: Queuing new transmission: DBntyTwoPassKey0720TheBusiness",
+            "trigger_keyword": "DBntyTwoPassKey0720TheBusiness) starting",
             "split_name": "Director 2"
           },
           {
@@ -18568,6 +18919,189 @@
             "order": 10,
             "trigger_keyword": "ThemedSquadOverlay.lua: SquadOverlay:OnUpdateSessionSettings - result=true",
             "split_name": "Bounty completed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "4ce37ec7-f9db-417b-90df-c96fdc8be45b",
+    "name": "Descendia (Dark refractory)",
+    "is_active": false,
+    "sequential_mode": false,
+    "exclude_time_between_groups": false,
+    "groups": [
+      {
+        "id": "b6cb4690-ea86-4d01-8dd5-d8a963805894",
+        "steps": [
+          {
+            "type": "StartMission",
+            "order": 0,
+            "trigger_keyword": "OnStateStarted",
+            "split_name": "The Descendia",
+            "mission_code": "location=SolNode253||ThemedSquadOverlay.lua: Lobby::Host_StartMatch: launching level for SolNode253"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 1,
+            "trigger_keyword": "1 (CoHMissionModeState)",
+            "split_name": "Elevator activated"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 2,
+            "trigger_keyword": "#1 floors completed",
+            "split_name": "Infernum 1"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 3,
+            "trigger_keyword": "#2 floors completed",
+            "split_name": "Infernum 2"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 4,
+            "trigger_keyword": "#3 floors completed",
+            "split_name": "Infernum 3"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 5,
+            "trigger_keyword": "#4 floors completed",
+            "split_name": "Infernum 4"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 6,
+            "trigger_keyword": "#5 floors completed",
+            "split_name": "Infernum 5"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 7,
+            "trigger_keyword": "#6 floors completed",
+            "split_name": "Infernum 6"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 8,
+            "trigger_keyword": "#7 floors completed",
+            "split_name": "Infernum 7"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 9,
+            "trigger_keyword": "#8 floors completed",
+            "split_name": "Infernum 8"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 10,
+            "trigger_keyword": "#9 floors completed",
+            "split_name": "Infernum 9"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 11,
+            "trigger_keyword": "#10 floors completed",
+            "split_name": "Infernum 10"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 12,
+            "trigger_keyword": "#11 floors completed",
+            "split_name": "Infernum 11"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 13,
+            "trigger_keyword": "#12 floors completed",
+            "split_name": "Infernum 12"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 14,
+            "trigger_keyword": "#13 floors completed",
+            "split_name": "Infernum 13"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 15,
+            "trigger_keyword": "#14 floors completed",
+            "split_name": "Infernum 14"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 16,
+            "trigger_keyword": "#15 floors completed",
+            "split_name": "Infernum 15"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 17,
+            "trigger_keyword": "#16 floors completed",
+            "split_name": "Infernum 16"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 18,
+            "trigger_keyword": "#17 floors completed",
+            "split_name": "Infernum 17"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 19,
+            "trigger_keyword": "#18 floors completed",
+            "split_name": "Infernum 18"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 20,
+            "trigger_keyword": "#19 floors completed",
+            "split_name": "Infernum 19"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 21,
+            "trigger_keyword": "#20 floors completed",
+            "split_name": "Infernum 20"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 22,
+            "trigger_keyword": "DHellStageEvergreenIntro2230Roathe) starting",
+            "split_name": "Lock broken"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 23,
+            "trigger_keyword": "LotusCinematic0 Play()",
+            "split_name": "Entering arena"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 24,
+            "trigger_keyword": "Uriel Fight Pre-Death",
+            "split_name": "First phase"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 25,
+            "trigger_keyword": "Throne Destruction",
+            "split_name": "Second phase"
+          },
+          {
+            "type": "MissionSplit",
+            "order": 26,
+            "trigger_keyword": "#21 floors completed",
+            "split_name": "Throne destroyed"
+          },
+          {
+            "type": "EndMission",
+            "order": 27,
+            "trigger_keyword": "- IsInTrigger=true=>Created /Lotus/Interface/EndOfMatch.swf",
+            "split_name": "Finish"
           }
         ]
       }

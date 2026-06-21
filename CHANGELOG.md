@@ -1,1 +1,6 @@
-- Added a feature to hide entries from the history so they aren't included in the statistics.
+- Some split codes have been updated to provide more accurate time recording
+- Added new default templates:
+  - Descendia (Dark refractory)
+  - Roathe (Dark Refractory) Assassination
+  - Kuva Wytch (Uranus Proxima) Assassination
+  - Scoria's Angel (Uranus Proxima) Assassination
