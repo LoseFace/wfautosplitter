@@ -9670,108 +9670,96 @@
           {
             "type": "MissionSplit",
             "order": 3,
-            "trigger_keyword": "Enabling spectator mode",
-            "split_name": "Asteroid inspected"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 4,
-            "trigger_keyword": "RailjackBordingParty.lua: Landscape - New State: 3",
-            "split_name": "Boarding party repelled"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 5,
             "trigger_keyword": "AshMissionStageA.lua: Landscape - New State: 5",
             "split_name": "Tasks completed"
           },
           {
             "type": "MissionSplit",
-            "order": 6,
+            "order": 4,
             "trigger_keyword": "AshMissionStageB.lua: Landscape - New State: 3",
             "split_name": "Entered shattered moon"
           },
           {
             "type": "MissionSplit",
-            "order": 7,
+            "order": 5,
             "trigger_keyword": "AshMissionStageB.lua: Landscape - New State: 4",
             "split_name": "Turrets destroyed"
           },
           {
             "type": "MissionSplit",
-            "order": 8,
+            "order": 6,
             "trigger_keyword": "AshMissionStageB.lua: Landscape - New State: 5",
             "split_name": "Ice blocks destroyed"
           },
           {
             "type": "MissionSplit",
-            "order": 9,
+            "order": 7,
             "trigger_keyword": "AshMissionStageC.lua: Enter POI: IceMoon",
             "split_name": "Entering comet's mine"
           },
           {
             "type": "MissionSplit",
-            "order": 10,
+            "order": 8,
             "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 2",
             "split_name": "Door opened"
           },
           {
             "type": "MissionSplit",
-            "order": 11,
+            "order": 9,
             "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 3",
             "split_name": "Golden Maws eliminated"
           },
           {
             "type": "MissionSplit",
-            "order": 12,
+            "order": 10,
             "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 4",
             "split_name": "Extermination started"
           },
           {
             "type": "MissionSplit",
-            "order": 13,
+            "order": 11,
             "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 6",
             "split_name": "Extermination ended"
           },
           {
             "type": "MissionSplit",
-            "order": 14,
+            "order": 12,
             "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 11",
             "split_name": "Director killed"
           },
           {
             "type": "MissionSplit",
-            "order": 15,
+            "order": 13,
             "trigger_keyword": "AshMissionStageCPOI.lua: ModeState = 12",
             "split_name": "Weapon unleashed"
           },
           {
             "type": "MissionSplit",
-            "order": 16,
+            "order": 14,
             "trigger_keyword": "AshMissionStageEPOI.lua: ModeState = 4",
             "split_name": "Extermination started"
           },
           {
             "type": "MissionSplit",
-            "order": 17,
+            "order": 15,
             "trigger_keyword": "AshMissionStageEPOI.lua: ModeState = 6",
             "split_name": "Extermination ended"
           },
           {
             "type": "MissionSplit",
-            "order": 18,
+            "order": 16,
             "trigger_keyword": "AshMissionStageEPOI.lua: ModeState = 7",
             "split_name": "Entering arena"
           },
           {
             "type": "MissionSplit",
-            "order": 19,
+            "order": 17,
             "trigger_keyword": "AshMissionStageEPOI.lua: ModeState = 8",
             "split_name": "Vena killed"
           },
           {
             "type": "EndMission",
-            "order": 20,
+            "order": 18,
             "trigger_keyword": "- IsInTrigger=true=>Created /Lotus/Interface/EndOfMatch.swf",
             "split_name": "Finish"
           }

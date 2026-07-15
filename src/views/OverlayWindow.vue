@@ -544,6 +544,64 @@ watch(
   }
 )
 
+function buildSnapshot() {
+  return {
+    background: overlayBackground.value,
+    showRunTitle: showRunTitle.value,
+    runTitle: runTitle.value,
+    showSplits: showSplits.value,
+    splits: paginatedSplits.value.map(split => {
+      const completed = split.is_completed || !isRunActive.value
+      const showDelta = completed && showComparisonColumns.value
+      const gold = isRunActive.value ? isGold(split.order, split.split_time) : getFrozenGold(split.order)
+      const delta = getDisplayDelta(split.order, split.split_time)
+      let cssClass = ''
+      if (showDelta) {
+        if (gold) cssClass = 'delta-gold'
+        else if (delta !== null) cssClass = delta >= 0 ? 'delta-positive' : 'delta-negative'
+      }
+      let timeText = ''
+      if (showDelta && delta !== null) timeText = formatDelta(delta)
+      else if (split.split_time !== null) timeText = formatTime(split.split_time)
+      return {
+        id: split.id,
+        name: split.name,
+        completed: split.is_completed,
+        withBorder: showSplitSeparators.value,
+        cssClass,
+        timeText,
+        bestTimeText: showComparisonColumns.value && getBestSplitTime(split.order) !== null
+          ? formatTime(getBestSplitTime(split.order)!) : ''
+      }
+    }),
+    showComparisonColumns: showComparisonColumns.value,
+    showSumOfBest: showSumOfBest.value && sumOfBest.value !== null && hasBestRun.value,
+    sumOfBestLabel: t('sum_of_best'),
+    sumOfBestText: sumOfBest.value !== null ? formatTime(sumOfBest.value) : '',
+    showPredictingTimer: showPredictingTimer.value,
+    predictingLabel: t('predicting'),
+    predictingText: disruptionPredictedTime.value !== null ? formatTime(disruptionPredictedTime.value) : '',
+    showTimer: showTimer.value,
+    timerText: displayTimer.value,
+    showGroupList: showGroupList.value,
+    groups: overlayState.value.pending_groups.map(g => g.first_split_name),
+    showRunAborted: showRunAborted.value,
+    failuresLabel: t('failures'),
+    abortCount: abortCount.value,
+    showSumLast: showSumLast.value,
+    sumOfTheLastLabel: t('sum_of_the_last'),
+    sumLastItems: lastRuns.value.map(r => formatTime(r.total_time)),
+    sumLastTotalText: sumLast.value !== null ? formatTime(sumLast.value) : ''
+  }
+}
+
+let broadcastInterval: number | null = null
+async function broadcastSnapshot() {
+  try {
+    await invoke('push_overlay_snapshot', { snapshot: buildSnapshot() })
+  } catch {}
+}
+
 onMounted(async () => {
   await listen<string>('language-changed', (event) => {
     i18n.global.locale.value = event.payload as any
@@ -676,6 +734,9 @@ onMounted(async () => {
   }
 
   loaded.value = true
+
+  broadcastSnapshot()
+  broadcastInterval = window.setInterval(broadcastSnapshot, 10)
 })
 
 onUnmounted(() => {
@@ -688,6 +749,8 @@ onUnmounted(() => {
     resizeObserver.disconnect()
     resizeObserver = null
   }
+
+  if (broadcastInterval) clearInterval(broadcastInterval)
 })
 
 const updateSize = async () => {
@@ -804,185 +867,6 @@ const updateSize = async () => {
   </div>
 </template>
 
-<style scoped>
-.overlay-window {
-  height: max-content;
-  width: 300px;
-  min-height: 20px;
-  position: relative;
-  display: inline-block;
-  color: white;
-}
+<style scoped src="../assets/overlay-window.css">
 
-.overlay-window.drag-mode {
-  cursor: move;
-}
-
-.display-content {
-  min-width: 150px;
-  max-width: 300px;
-  position: relative;
-  z-index: 1;
-  pointer-events: none;
-  user-select: none;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.run-title {
-  text-align: center;
-  margin-bottom: 5px;
-  color: white;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0);
-  word-wrap: break-word;
-  white-space: normal;
-  max-width: 500px;
-}
-
-.splits-table {
-  width: 100%;
-  min-width: 0;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0);
-}
-
-.split-row {
-  display: flex;
-  padding: 5px 5px;
-  min-width: 0;
-  gap: 6px;
-}
-
-.split-row.with-border {
-  border-bottom: 1px solid rgba(126, 126, 126);
-}
-.split-row.with-border:first-child {
-  border-top: 1px solid rgba(126, 126, 126);
-}
-
-.split-row.completed .split-name {
-  color: #90ee90;
-}
-
-.split-name {
-  text-align: left;
-  flex: 1 1 auto;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: white;
-  font-size: 15px;
-}
-
-.split-time {
-  text-align: right;
-  font-family: monospace;
-  flex: 0 0 auto;
-  white-space: nowrap;
-  font-size: 15px;
-}
-
-.split-time.delta-gold {
-  color: #ffd700;
-}
-.split-time.delta-positive {
-  color: #e05050;
-}
-.split-time.delta-negative {
-  color: #90ee90;
-}
-
-.split-best {
-  text-align: right;
-  flex: 0 0 auto;
-  white-space: nowrap;
-  color: white;
-  font-family: monospace;
-  font-size: 15px;
-}
-
-.timer{
-  padding: 5px;
-  font-size: 30px;
-}
-
-.timer,
-.failures,
-.sum-best,
-.predicting-timer {
-  align-self: end;
-  padding-right: 5px;
-  color: white;
-  font-family: monospace;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0);
-}
-.sum-best,
-.failures,
-.predicting-timer {
-  font-size: 15px;
-}
-
-.sum-last {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-shadow: 1px 1px 2px rgba(0,0,0,1);
-  margin-top: 3px;
-}
-.sum-last-label{
-  font-size: 15px;
-}
-.sum-last-times {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2px; 
-}
-.sum-last-times > span,
-.sum-last-times > span > span{
-  font-size: 15px;  
-}
-.sum-last-total {
-  font-size: 15px; 
-  font-weight: bold;
-  margin-top: 2px;
-}
-
-.pending-groups {
-  width: 100%;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0);
-  color: rgb(0, 204, 255);
-}
-
-.pending-group-row {
-  display: flex;
-  padding: 0px 5px;
-}
-
-.pending-group-name {
-  text-align: left;
-  flex: 1 1 auto;
-  white-space: wrap;
-  font-size: 15px;
-}
-
-.drag-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px dashed white;
-  z-index: 2;
-  pointer-events: auto;
-}
-.drag-overlay > p {
-  text-wrap: nowrap;
-  color: yellow;
-}
 </style>

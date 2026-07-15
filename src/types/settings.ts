@@ -21,6 +21,8 @@ export interface AppSettings {
     show: boolean
     pos_x: number
     pos_y: number
+    overlay_browser: boolean
+    overlay_browser_addr: string
     overlay_transparent: number
     run_name: boolean
     show_splits: boolean

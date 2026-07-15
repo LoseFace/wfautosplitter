@@ -107,15 +107,18 @@ button, select{
 input{
   border: 0px;
 }
-input[type="number"]{
-  background-color: var(--bg-color);
+input[type="number"],
+input[type="text"]{
   color: var(--text-color);
   cursor: text !important;
-  width: 40px;
   text-align: center;
-  
 }
-input[type="number"]:focus{
+input[type="number"]{
+  background-color: var(--bg-color);
+  width: 40px;
+}
+input[type="number"]:focus,
+input[type="text"]:focus{
   outline: none;
   box-shadow: 0px -2px 0px -1px var(--chbx-border-color) inset;
 }
@@ -252,6 +255,7 @@ input[type="text"]::placeholder{
 }
 input[type="number"]:disabled,
 input[type="range"]:disabled,
+input[type="text"]:disabled,
 select:disabled{
   cursor: default !important;
 }

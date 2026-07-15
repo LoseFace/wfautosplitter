@@ -84,6 +84,11 @@
   
   "enable_overlay":"Увімкнути оверлей",
   "enable_desc":"Реєстрація часу не залежить від оверлея.",
+  "overlay_browser":"Відобразити вміст оверлея за локальною адресою",
+  "overlay_browser_desc":"Джерело працюватиме навіть при вимкненому оверлею.",
+  "overlay_browser_starting":"Запуск...",
+  "overlay_browser_running":"Працює",
+  "overlay_browser_error":"Помилка",
   "overlay_transparent":"Прозорість фону оверлея",
   "run_name":"Відображати назву забігу",
   "show_splits":"Відображати спліти",

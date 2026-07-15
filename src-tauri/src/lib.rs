@@ -5,6 +5,7 @@ mod hotkeys;
 mod log_reader;
 mod parser;
 mod templates;
+mod web_overlay;
 
 use db::database::init_db;
 use db::runs;
@@ -15,6 +16,7 @@ use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 use tauri::Manager;
 use tauri_plugin_fs::init;
+use web_overlay::OverlayBroadcast;
 
 #[tauri::command]
 fn save_run(run: Run) -> Result<i64, String> {
@@ -88,6 +90,14 @@ async fn start_log_reading(app: tauri::AppHandle, path: String) {
         println!("Watcher error: {:?}", e);
     }
 }
+#[tauri::command]
+fn push_overlay_snapshot(snapshot: serde_json::Value, state: tauri::State<OverlayBroadcast>) {
+    state.push(snapshot.to_string());
+}
+#[tauri::command]
+fn get_overlay_browser_status(state: tauri::State<OverlayBroadcast>) -> web_overlay::OverlayBrowserStatus {
+    state.get_status()
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AppSettings {
@@ -120,6 +130,8 @@ pub struct OverlaySettings {
     y:i32,
     pos_x: i32,
     pos_y: i32,
+    overlay_browser: bool,
+    overlay_browser_addr: String,
     overlay_transparent: i32,
     run_name: bool,
     show_splits: bool,
@@ -164,6 +176,8 @@ fn default_settings() -> AppSettings {
             y: 20,
             pos_x: 100,
             pos_y: 100,
+            overlay_browser: false,
+            overlay_browser_addr: "127.0.0.1:5750".into(),
             overlay_transparent: 50,
             run_name: true,
             show_splits: true,
@@ -228,6 +242,7 @@ fn is_valid_position(x: i32, y: i32) -> bool {
 fn set_settings(
     new_settings: AppSettings,
     state: tauri::State<SettingsState>,
+    overlay_broadcast: tauri::State<OverlayBroadcast>,
     app: tauri::AppHandle,
 ) {
     let mut settings = state.inner.lock().unwrap();
@@ -238,6 +253,9 @@ fn set_settings(
         safe_settings.window.pos_y = settings.window.pos_y;
     }
 
+    let browser_changed = settings.overlay.overlay_browser != safe_settings.overlay.overlay_browser
+        || settings.overlay.overlay_browser_addr != safe_settings.overlay.overlay_browser_addr;
+
     *settings = safe_settings.clone();
     save_settings_to_file(&safe_settings);
 
@@ -246,6 +264,14 @@ fn set_settings(
             let _ = window.show();
         } else {
             let _ = window.hide();
+        }
+    }
+
+    if browser_changed {
+        if safe_settings.overlay.overlay_browser {
+            overlay_broadcast.start_at(safe_settings.overlay.overlay_browser_addr.clone());
+        } else {
+            overlay_broadcast.stop();
         }
     }
 
@@ -376,6 +402,9 @@ pub fn run() {
             register_shortcut_command,
             unregister_shortcut_command,
             read_custom_locales,
+
+            push_overlay_snapshot,
+            get_overlay_browser_status,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
@@ -390,6 +419,12 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
+
+    let overlay_broadcast = OverlayBroadcast::new(app.handle().clone());
+    if initial_settings.overlay.overlay_browser {
+        overlay_broadcast.start_at(initial_settings.overlay.overlay_browser_addr.clone());
+    }
+    app.manage(overlay_broadcast);
 
     let app_handle = app.handle().clone();
 

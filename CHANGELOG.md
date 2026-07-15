@@ -1,6 +1,1 @@
-- Some split codes have been updated to provide more accurate time recording
-- Added new default templates:
-  - Descendia (Dark refractory)
-  - Roathe (Dark Refractory) Assassination
-  - Kuva Wytch (Uranus Proxima) Assassination
-  - Scoria's Angel (Uranus Proxima) Assassination
+- Added a feature to display overlay content by local address to make it easier to use in OBS Studio

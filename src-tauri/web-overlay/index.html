@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+<!--STYLES-->
+</style>
+</head>
+<body>
+  <div class="overlay-window" id="overlay">
+    <div class="display-content" id="content"></div>
+  </div>
+<script>
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function render(s) {
+  document.getElementById('overlay').style.backgroundColor = s.background || 'transparent';
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  if (s.showRunTitle) content.appendChild(el('div', 'run-title', s.runTitle));
+
+  if (s.showSplits) {
+    const table = el('div', 'splits-table');
+    (s.splits || []).forEach(split => {
+      const row = el('div', 'split-row' + (split.completed ? ' completed' : '') + (split.withBorder ? ' with-border' : ''));
+      row.appendChild(el('div', 'split-name', split.name));
+      row.appendChild(el('div', 'split-time' + (split.cssClass ? ' ' + split.cssClass : ''), split.timeText));
+      if (s.showComparisonColumns) row.appendChild(el('div', 'split-best', split.bestTimeText));
+      table.appendChild(row);
+    });
+    content.appendChild(table);
+  }
+
+  if (s.showSumOfBest) content.appendChild(el('div', 'sum-best', s.sumOfBestLabel + ': ' + s.sumOfBestText));
+  if (s.showPredictingTimer) content.appendChild(el('div', 'predicting-timer', s.predictingLabel + ': ' + s.predictingText));
+  if (s.showTimer) content.appendChild(el('div', 'timer', s.timerText));
+
+  if (s.showGroupList) {
+    const groups = el('div', 'pending-groups');
+    (s.groups || []).forEach(name => {
+      const row = el('div', 'pending-group-row');
+      row.appendChild(el('span', 'pending-group-name', name));
+      groups.appendChild(row);
+    });
+    content.appendChild(groups);
+  }
+
+  if (s.showRunAborted) content.appendChild(el('div', 'failures', s.failuresLabel + ': ' + s.abortCount));
+
+  if (s.showSumLast) {
+    const wrap = el('div', 'sum-last');
+    wrap.appendChild(el('div', 'sum-last-label', s.sumOfTheLastLabel + ':'));
+    const times = el('div', 'sum-last-times');
+    (s.sumLastItems || []).forEach((t, idx) => {
+      times.appendChild(el('span', 'sum-last-item', ' ' + t + (idx < s.sumLastItems.length - 1 ? ' +' : '')));
+    });
+    wrap.appendChild(times);
+    wrap.appendChild(el('div', 'sum-last-total', '= ' + s.sumLastTotalText));
+    content.appendChild(wrap);
+  }
+}
+
+function connect() {
+  const ws = new WebSocket('ws://' + location.host + '/ws');
+  ws.onmessage = (msg) => { try { render(JSON.parse(msg.data)); } catch (e) {} };
+  ws.onclose = () => setTimeout(connect, 1000);
+  ws.onerror = () => ws.close();
+}
+connect();
+</script>
+</body>
+</html>

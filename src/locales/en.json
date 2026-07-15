@@ -84,6 +84,11 @@
   
   "enable_overlay":"Enable overlay",
   "enable_desc":"Time recording is independent of the overlay.",
+  "overlay_browser":"Show the overlay content at the local address",
+  "overlay_browser_desc":"The source will work even with the overlay turned off.",
+  "overlay_browser_starting":"Starting...",
+  "overlay_browser_running":"Running",
+  "overlay_browser_error":"Error",
   "overlay_transparent":"Overlay background transparency",
   "run_name":"Show race name",
   "show_splits":"Show splits",

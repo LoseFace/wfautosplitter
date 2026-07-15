@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { watch, onMounted } from 'vue'
+import { watch, onMounted, ref, computed, onUnmounted} from 'vue'
+import { listen } from '@tauri-apps/api/event'
 import { settings } from "../services/settings"
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import KeybindCapture from '../views/components/KeybindCapture.vue'
@@ -7,8 +8,41 @@ import { invoke } from "@tauri-apps/api/core"
 import { updateGlobalShortcut } from "../services/settings"
 import type { AppSettings } from "../types/settings"
 import { provideKeybindContext } from '../composables/useKeybindContext'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 provideKeybindContext()
+
+type OverlayBrowserStatusPayload =
+  | { status: 'Stopped' }
+  | { status: 'Starting' }
+  | { status: 'Running' }
+  | { status: 'Error'; message: string }
+
+const overlayBrowserStatus = ref<OverlayBrowserStatusPayload>({ status: 'Stopped' })
+let unlistenStatus: (() => void) | null = null
+
+const addressDisplay = computed({
+  get() {
+    if (settings.overlay.overlay_browser) {
+      switch (overlayBrowserStatus.value.status) {
+        case 'Starting': return t('overlay_browser_starting')
+        case 'Running': return t('overlay_browser_running')
+        case 'Error': return t(`overlay_browser_error`)
+      }
+    }
+    return settings.overlay.overlay_browser_addr
+  },
+  set(val: string) {
+    settings.overlay.overlay_browser_addr = val
+  }
+})
+const addressErrorTooltip = computed(() => {
+  return overlayBrowserStatus.value.status === 'Error'
+    ? overlayBrowserStatus.value.message
+    : undefined
+})
 
 const syncOverlayVisibility = async () => {
   const overlayWindow = await WebviewWindow.getByLabel('overlay-window')
@@ -47,6 +81,18 @@ watch(
 
 onMounted(async () => {
   await syncOverlayVisibility()
+
+  try {
+    overlayBrowserStatus.value = await invoke<OverlayBrowserStatusPayload>('get_overlay_browser_status')
+  } catch {}
+
+  unlistenStatus = await listen<OverlayBrowserStatusPayload>('overlay-browser-status', (event) => {
+    overlayBrowserStatus.value = event.payload
+  })
+})
+
+onUnmounted(() => {
+  if (unlistenStatus) unlistenStatus()
 })
 </script>
 
@@ -71,6 +117,29 @@ onMounted(async () => {
 
     
     <fieldset :disabled="!settings.overlay.show">  
+      <div class="overlay-browser">
+        {{ $t('overlay_browser') }}:
+        <input
+          type="text"
+          placeholder="127.0.0.1:5750"
+          class="overlay-browser-addr"
+          :disabled="settings.overlay.overlay_browser"
+          v-model="addressDisplay"
+          :title="addressErrorTooltip"
+          />
+        <label class="custom-checkbox">
+          <input
+            type="checkbox"
+            v-model="settings.overlay.overlay_browser"
+          />
+          <span class="checkmark"></span>
+        </label>
+        
+        <div class="overlay-browser-desc">
+          {{ $t('overlay_browser_desc') }}
+        </div>
+      </div>
+      
       <div class="overlay-transparent"> {{ $t('overlay_transparent') }}
         <input
           type="range"
@@ -309,10 +378,17 @@ fieldset > div:hover{
   width: 100%;
 }
 .input-number-of-splits,
-.input-sum-of-last-runs{
+.input-sum-of-last-runs,
+.overlay-browser-addr{
   box-shadow: 0px 1px 0px gray;
 }
+.overlay-browser-addr{
+  background-color: var(--bg-color);
+  width: 150px;
+  margin-right: 10px;
+}
 .enable-overlay-desc,
+.overlay-browser-desc,
 .number-of-splits-desc,
 .fake-timer-desc,
 .predicting-timer-desc{

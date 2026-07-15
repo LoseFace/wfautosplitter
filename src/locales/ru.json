@@ -84,6 +84,11 @@
   
   "enable_overlay":"Включить оверлей",
   "enable_desc":"Регистрация времени не зависит от оверлея.",
+  "overlay_browser":"Отобразить содержимое оверлея по локальному адресу",
+  "overlay_browser_desc":"Источник будет работать даже при выключенном оверлее.",
+  "overlay_browser_starting":"Запуск...",
+  "overlay_browser_running":"Работает",
+  "overlay_browser_error":"Ошибка",
   "overlay_transparent":"Прозрачность фона оверлея",
   "run_name":"Показывать название забега",
   "show_splits":"Показывать сплиты",
