@@ -1,1 +1,2 @@
-- Added a feature to display overlay content by local address to make it easier to use in OBS Studio
+- Added a "Sync with Template" button to the races statistic
+- Added a race entries counter

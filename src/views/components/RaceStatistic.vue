@@ -20,6 +20,7 @@ import imgZoom from '../../imgs/zoom.png'
 import imgToLeft from '../../imgs/toLeft.png'
 import imgToRight from '../../imgs/toRight.png'
 import imgVisibility from '../../imgs/visibility.png'
+import imgSync from '../../imgs/sync.png'
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip)
 
@@ -67,6 +68,11 @@ interface Run {
   visibility: number
 }
 
+interface SyncTemplate {
+  id: string
+  name: string
+}
+
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
   if (unlistenRunSaved) unlistenRunSaved()
@@ -97,6 +103,59 @@ const confirmDialog = ref<{ visible: boolean; label: string; ids: number[] }>({
   label: '',
   ids: [],
 })
+
+const allTemplatesForSync = ref<SyncTemplate[]>([])
+
+async function loadTemplatesForSync() {
+  try {
+    allTemplatesForSync.value = await invoke<SyncTemplate[]>('get_templates')
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const availableSyncTemplates = computed(() =>
+  allTemplatesForSync.value.filter(t => t.id !== props.summary.template_id)
+)
+
+const syncDialog = ref<{ visible: boolean }>({ visible: false })
+const selectedSyncTemplateId = ref<string | null>(null)
+const isSyncing = ref(false)
+
+function openSyncDialog() {
+  if (isSyncing.value || availableSyncTemplates.value.length === 0) return
+  selectedSyncTemplateId.value = null
+  syncDialog.value.visible = true
+}
+
+function cancelSync() {
+  if (isSyncing.value) return
+  syncDialog.value.visible = false
+  selectedSyncTemplateId.value = null
+}
+
+async function confirmSync() {
+  if (isSyncing.value || !selectedSyncTemplateId.value) return
+  const target = availableSyncTemplates.value.find(t => t.id === selectedSyncTemplateId.value)
+  if (!target) return
+
+  isSyncing.value = true
+  try {
+    await invoke('resync_template_runs', {
+      oldTemplateId: props.summary.template_id,
+      newTemplateId: target.id,
+      newTemplateName: target.name,
+    })
+    syncDialog.value.visible = false
+    selectedSyncTemplateId.value = null
+    emit('deleted')
+    emit('close')
+  } catch (e) {
+    console.error(e)
+  } finally {
+    isSyncing.value = false
+  }
+}
 
 function askBatchDelete(label: string, ids: number[]) {
   if (isDeleting.value || ids.length === 0) return
@@ -573,6 +632,7 @@ onMounted(async () => {
   window.addEventListener('resize', onWindowResize)
 
   loadRuns()
+  loadTemplatesForSync()
   
   unlistenRunSaved = await listen<number>('run-saved', async () => {
     await loadRuns()
@@ -1148,6 +1208,13 @@ onUnmounted(() => {
         </label>
       </div>
       <div class="deletion-records">
+        <button
+          v-if="availableSyncTemplates.length > 0"
+          class="sync-button"
+          @click="openSyncDialog"
+        >
+          <img :src="imgSync" :title="$t('sync_desc')">
+        </button>
         <button :disabled="isDeleting" @click="toggleDeletionMode">{{ deletionMode ? $t('cancel') : $t('delete_records') }}</button>
       </div>
     </div>
@@ -1297,6 +1364,45 @@ onUnmounted(() => {
         </div>
       </div>
     </Transition>
+
+    <Transition name="confirm-fade">
+      <div
+        v-if="syncDialog.visible"
+        class="confirm-overlay"
+        @click.self="cancelSync"
+      >
+        <div class="confirm-dialog sync-dialog">
+          <p class="confirm-name">{{ summary.template_name }}</p>
+          <p class="confirm-text">{{ $t('sync_select_template') }}</p>
+
+          <div class="sync-template-list">
+            <div
+              v-for="tpl in availableSyncTemplates"
+              :key="tpl.id"
+              class="sync-template-item"
+              :class="{ 'sync-template-item--selected': selectedSyncTemplateId === tpl.id }"
+              @click="selectedSyncTemplateId = tpl.id"
+            >
+              {{ tpl.name }}
+            </div>
+          </div>
+
+          <div class="confirm-actions">
+            <button
+              class="button button--danger"
+              :disabled="isSyncing || !selectedSyncTemplateId"
+              @click="confirmSync"
+            >
+              <template v-if="isSyncing">{{ $t('in_progress') }}...</template>
+              <template v-else>{{ $t('confirm') }}</template>
+            </button>
+            <button v-show="!isSyncing" class="button" @click="cancelSync">
+              {{ $t('cancel') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -1327,11 +1433,18 @@ onUnmounted(() => {
   justify-self: center;
 }
 
+.sync-button > img{
+  display: flex;
+  width: 22px;
+  height: 22px;
+}
+
 .deletion-records{
   width: 100%;
   display: flex;
   justify-content: end;
   padding-right: 10px;
+  gap: 10px;
 }
 .deletion-records > button{
   height: 100%;
@@ -1605,6 +1718,41 @@ onUnmounted(() => {
 .confirm-fade-enter-from,
 .confirm-fade-leave-to {
   opacity: 0;
+}
+
+.sync-dialog {
+  height: max-content;
+  max-width: max-content;
+  max-height: 80vh;
+}
+.sync-template-list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  width: 100%;
+  gap: 6px;
+  padding: 5px;
+  align-items: center;
+  background-color: var(--bg-color);
+}
+.sync-template-item {
+  display: flex;
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+  padding: 8px;
+  background: var(--card-bg);
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s
+}
+.sync-template-item:hover {
+  background-color: var(--btn-bg-color);
+}
+.sync-template-item--selected {
+  cursor: default;
+  background-color: var(--btn-bg-color);
+  border-color: var(--chbx-checked-bg-color);
 }
 
 .th-visibility,

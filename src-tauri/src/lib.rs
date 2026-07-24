@@ -81,6 +81,16 @@ fn set_run_visibility(app: tauri::AppHandle, run_id: i64, visibility: i64) -> Re
     Ok(result)
 }
 #[tauri::command]
+fn resync_template_runs(
+    old_template_id: String,
+    new_template_id: String,
+    new_template_name: String,
+) -> Result<(), String> {
+    let mut conn = init_db();
+    runs::resync_template_runs(&mut conn, &old_template_id, &new_template_id, &new_template_name)
+        .map_err(|e| e.to_string())
+}
+#[tauri::command]
 fn force_run_reset(app: tauri::AppHandle) {
     let _ = app.emit("force-run-reset", ());
 }
@@ -396,6 +406,7 @@ pub fn run() {
             get_template_summaries,
             get_runs_for_chart,
             rename_template_runs,
+            resync_template_runs,
             force_run_reset,
             set_run_visibility,
 

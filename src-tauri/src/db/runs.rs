@@ -525,3 +525,38 @@ pub fn set_run_visibility(
     )?;
     Ok(affected > 0)
 }
+
+pub fn resync_template_runs(
+    conn: &mut Connection,
+    old_template_id: &str,
+    new_template_id: &str,
+    new_template_name: &str,
+) -> rusqlite::Result<()> {
+    let tx = conn.transaction()?;
+
+    tx.execute(
+        "UPDATE runs SET template_id = ?1, template_name = ?2 WHERE template_id = ?3",
+        params![new_template_id, new_template_name, old_template_id],
+    )?;
+
+    // переносим счётчик срывов со старого template_id на новый
+    let old_aborts: Option<i64> = tx.query_row(
+        "SELECT abort_count FROM aborts WHERE template_id = ?1",
+        params![old_template_id],
+        |row| row.get(0),
+    ).optional()?;
+
+    if let Some(count) = old_aborts {
+        tx.execute(
+            "INSERT INTO aborts (template_id, abort_count)
+             VALUES (?1, ?2)
+             ON CONFLICT(template_id)
+             DO UPDATE SET abort_count = abort_count + excluded.abort_count",
+            params![new_template_id, count],
+        )?;
+        tx.execute("DELETE FROM aborts WHERE template_id = ?1", params![old_template_id])?;
+    }
+
+    tx.commit()?;
+    Ok(())
+}

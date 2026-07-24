@@ -116,7 +116,7 @@ onUnmounted(() => {
     </div>
 
     
-    <fieldset :disabled="!settings.overlay.show">  
+    <fieldset :disabled="!settings.overlay.show" :style="{ '--cb-cursor': !settings.overlay.show ? 'default' : 'pointer' }">  
       <div class="overlay-browser">
         {{ $t('overlay_browser') }}:
         <input
@@ -409,5 +409,10 @@ fieldset > div:hover{
 }
 .overlay-separator:hover{
   background-color: rgba(0, 0, 0, 0.5) !important;
+}
+.custom-checkbox,
+.custom-checkbox input,
+.overlay-transparent input {
+  cursor: var(--cb-cursor);
 }
 </style>

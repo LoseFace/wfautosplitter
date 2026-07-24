@@ -86,11 +86,11 @@ function setupLocalHotkeyFallback() {
   }, true)
 }
 
-window.addEventListener('contextmenu', (e) => e.preventDefault())
-window.addEventListener('keydown', (e) => {
-  const k = e.key.toLowerCase()
-  if (k === 'f5' || (e.ctrlKey && (k === 'r' || k === 'p'))) e.preventDefault()
-})
+// window.addEventListener('contextmenu', (e) => e.preventDefault())
+// window.addEventListener('keydown', (e) => {
+//   const k = e.key.toLowerCase()
+//   if (k === 'f5' || (e.ctrlKey && (k === 'r' || k === 'p'))) e.preventDefault()
+// })
 
 async function bootstrap() {
   const windowLabel = getCurrentWindow().label
