@@ -18322,7 +18322,7 @@
           {
             "type": "StartMission",
             "order": 0,
-            "trigger_keyword": "Starting job PLAGUE STAR",
+            "trigger_keyword": "EidolonMissions.lua - Starting job",
             "split_name": "Plague star",
             "mission_code": "location=SolNode228"
           },
@@ -18407,135 +18407,6 @@
           {
             "type": "EndMission",
             "order": 14,
-            "trigger_keyword": "DToxinSFourWinKonzu) starting",
-            "split_name": "Finish"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "4d259de5-67b9-4d4e-a44c-e99633e5ae08",
-    "name": "Plague star (Advanced)",
-    "is_active": false,
-    "sequential_mode": false,
-    "exclude_time_between_groups": false,
-    "groups": [
-      {
-        "id": "96b71f9e-a2b6-4c3a-8b9f-b987428527bf",
-        "steps": [
-          {
-            "type": "StartMission",
-            "order": 0,
-            "trigger_keyword": "Starting job PLAGUE STAR",
-            "split_name": "Plague star",
-            "mission_code": "location=SolNode228"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 1,
-            "trigger_keyword": "DToxinDesc0100Konzu) starting",
-            "split_name": "Stage 1 start"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 2,
-            "trigger_keyword": "New State: 2",
-            "split_name": "Encampment found"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 3,
-            "trigger_keyword": "from ES_ACTIVE to status ES_SUCCEEDED",
-            "split_name": "Canister taken"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 4,
-            "trigger_keyword": "DToxinSTwoObj0230Lotus) starting",
-            "split_name": "Stage 2 start"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 5,
-            "trigger_keyword": "New State: 1",
-            "split_name": "Mixer found"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 6,
-            "trigger_keyword": "New State: 3",
-            "split_name": "Vault opened"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 7,
-            "trigger_keyword": "New State: 4",
-            "split_name": "Mixer activated"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 8,
-            "trigger_keyword": "New State: 5",
-            "split_name": "Mixing finished"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 9,
-            "trigger_keyword": "from ES_ACTIVE to status ES_SUCCEEDED",
-            "split_name": "Mixture taken"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 10,
-            "trigger_keyword": "DToxinSThreeObj0360Lotus) starting",
-            "split_name": "Stage 3 start"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 11,
-            "trigger_keyword": "DToxinSThreeArrive0370Lotus) starting",
-            "split_name": "Drone found"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 12,
-            "trigger_keyword": "Creating Hacked Drone",
-            "split_name": "Drone hacked"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 13,
-            "trigger_keyword": "DToxinSFourExt0430Lotus) starting",
-            "split_name": "Stage 4 start"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 14,
-            "trigger_keyword": "Spawning Boss at level",
-            "split_name": "Hemocyte 1 spawned"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 15,
-            "trigger_keyword": "Spawning Boss at level",
-            "split_name": "Hemocyte 2 spawned"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 16,
-            "trigger_keyword": "Spawning Boss at level",
-            "split_name": "Hemocyte 3 spawned"
-          },
-          {
-            "type": "MissionSplit",
-            "order": 17,
-            "trigger_keyword": "Spawning Boss at level",
-            "split_name": "Hemocyte 4 spawned"
-          },
-          {
-            "type": "EndMission",
-            "order": 18,
             "trigger_keyword": "DToxinSFourWinKonzu) starting",
             "split_name": "Finish"
           }
@@ -18545,7 +18416,7 @@
   },
   {
     "id": "fc83893e-7d87-4f17-8a87-662cce3fd4e2",
-    "name": "Plague star (Steal Path)",
+    "name": "Plague star (Advanced & Steal Path)",
     "is_active": false,
     "sequential_mode": false,
     "exclude_time_between_groups": false,
@@ -18556,7 +18427,7 @@
           {
             "type": "StartMission",
             "order": 0,
-            "trigger_keyword": "Starting job PLAGUE STAR",
+            "trigger_keyword": "EidolonMissions.lua - Starting job",
             "split_name": "Plague star",
             "mission_code": "location=SolNode228"
           },

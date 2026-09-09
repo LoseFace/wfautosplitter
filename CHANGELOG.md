@@ -1,5 +1,3 @@
-- Add a new templates:
-  - "Razorback (Event) Assassination".
-  - "Plague star"
-  - "Plague star (Advanced)"
-  - "Plague star (Steal Path)"
+- "Plague star (Advanced)" and "Plague star (Steal Path)" templates were combined into one, since they do not differ in terms of splits.
+- The start code for the "Plague star" templates has been fixed. 
+  - Previously, it didn't work if the game wasn't in English.
