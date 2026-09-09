@@ -1,2 +1,5 @@
-- Added a "Sync with Template" button to the races statistic
-- Added a race entries counter
+- Add a new templates:
+  - "Razorback (Event) Assassination".
+  - "Plague star"
+  - "Plague star (Advanced)"
+  - "Plague star (Steal Path)"
